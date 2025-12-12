@@ -1,0 +1,106 @@
+.myheader{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background-color: white;
+    color: black;
+    position: relative;
+    z-index: 50;
+}
+.head1{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.menu{
+    font-size: 30px;
+    cursor: pointer;
+}
+.head2{
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+.inhead{
+    display: flex;
+    flex-direction: column;
+}
+.uname{
+    font-size: 20px;
+    margin: 0;
+}
+.uu{
+    font-size: 14px;
+    margin: 0;
+}
+.user{
+    font-size: 35px;
+}
+
+.sidebar{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 250px;
+    align-items: center;
+    position: fixed;
+    left: -300px;
+    background-color: white;
+    color: black;
+    height: 100%;
+    transition: left 0.3s ease;
+    border-top: 0.1px solid black;
+    padding-top: 20px;
+    padding-left: 10px;
+    z-index: 60;
+    box-sizing: border-box;
+}
+.sidebar.open{
+    left: 0;
+}
+.sidebar p{
+    margin: 0;
+    width: 100%;
+    font-size: 20px;
+    border-bottom: 0.1px solid black;
+}
+.sidebar p:hover{
+    cursor: pointer;
+}
+.icntxt{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    backdrop-filter: blur(1px);
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 10; 
+}
+.dropdown{
+    position: absolute; 
+    top: 80px;          
+    right: 30px;
+    color: black;        
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    display: none;    
+    z-index: 1000;   
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: top 0.3s ease;
+}
+.dropdown.showDropdown{
+    display: block;
+}
+.dropdown p{
+    border-bottom: 0.1px solid black;
+    cursor: pointer;
+}

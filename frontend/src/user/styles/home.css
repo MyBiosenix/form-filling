@@ -1,0 +1,10 @@
+html, body {
+  width: 100%;
+  overflow-x: hidden;
+}
+.myhome{
+    width: 100vw;
+    height: 100vh;
+    background-color: white;
+    font-family: 'Times New Roman', Times, serif;
+}
