@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "../Styles/form.css";
-import { useNavigate, useLocation } from 'react-router-dom';
-import axios from "axios";
+import { useNavigate, useLocation } from "react-router-dom";
 
-function AdminForm() {
+function PackageForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const packageToEdit = location.state?.packageToEdit || null;
@@ -20,15 +19,17 @@ function AdminForm() {
     }
   }, [packageToEdit]);
 
-  const handlePackage = async () => {
+  const handlePackage = () => {
     setNameError('');
     setPriceError('');
 
     let valid = true;
-    if (!name) {
+
+    if (!name.trim()) {
       setNameError('Package name is required');
       valid = false;
     }
+
     if (!price) {
       setPriceError('Price is required');
       valid = false;
@@ -36,32 +37,23 @@ function AdminForm() {
 
     if (!valid) return;
 
-    try {
-      if (packageToEdit) {
-        const res = await axios.put(
-          `https://api.freelancing-project.com/api/package/${packageToEdit._id}/edit-package`,
-          { name, price }
-        );
-        alert(res.data.message || "Package updated successfully");
-      } else {
-
-        const res = await axios.post(
-          'https://api.freelancing-project.com/api/package/create-package',
-          { name, price }
-        );
-        alert(res.data.message || "Package added successfully");
-      }
-      navigate('/admin/manage-package');
-    } catch (err) {
-      alert(err.response?.data?.message || "Server error");
+    // Frontend-only success message
+    if (packageToEdit) {
+      alert("Package updated successfully (Frontend only)");
+    } else {
+      alert("Package added successfully (Frontend only)");
     }
+
+    navigate('/admin/manage-package');
   };
 
   return (
     <div className="asacomp">
       <h3>{packageToEdit ? 'Edit Package' : 'Add Package'}</h3>
+
       <div className="inasacomp">
         <h4>Enter Basic Details</h4>
+
         <div className="form">
           <input
             type="text"
@@ -81,9 +73,13 @@ function AdminForm() {
         </div>
 
         <div className="bttns">
-          <button className="cancel" onClick={() => navigate('/admin/manage-package')}>
+          <button
+            className="cancel"
+            onClick={() => navigate('/admin/manage-package')}
+          >
             Cancel
           </button>
+
           <button className="submit" onClick={handlePackage}>
             {packageToEdit ? 'Update' : 'Submit'}
           </button>
@@ -92,4 +88,5 @@ function AdminForm() {
     </div>
   );
 }
-export default AdminForm;
+
+export default PackageForm;

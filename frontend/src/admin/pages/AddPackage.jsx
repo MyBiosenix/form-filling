@@ -1,15 +1,16 @@
 import React from 'react'
 import '../styles/form.css'
 import Header from '../components/Header'
-import UserForm from '../components/UserForm'
+import PackageForm from '../components/PackageForm'
 
-function AddUser() {
+function AddPackage() {
   return (
     <div className='adminform'>
         <Header/>
-        <UserForm/>
+        <PackageForm/>
+      
     </div>
   )
 }
 
-export default AddUser
+export default AddPackage

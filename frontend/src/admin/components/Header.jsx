@@ -27,10 +27,10 @@ function Header() {
         <div className={`sidebar ${open? 'open':''}`}>
             <p className='icntxt' onClick={()=>navigate('/admin')}><FaTachometerAlt className='hicon'/>Dashboard</p>
             <p className='icntxt' onClick={()=>navigate('/admin/manage-admin')}><FaUserShield className='hicon'/>Manage Admin</p>
-            <p className='icntxt'><FaUsers className='hicon'/>Manage User</p>
-            <p className='icntxt'><FaBoxOpen className='hicon'/>Manage Packages</p>
-            <p className='icntxt'><FaUserCheck className='hicon'/>Active Users</p>
-            <p className='icntxt'><FaUserTimes className='hicon'/>Deactivated Users</p>
+            <p className='icntxt' onClick={()=>navigate('/admin/manage-user')}><FaUsers className='hicon'/>Manage User</p>
+            <p className='icntxt' onClick={()=>navigate('/admin/manage-package')}><FaBoxOpen className='hicon'/>Manage Packages</p>
+            <p className='icntxt' onClick={()=>navigate('/admin/active-users')}><FaUserCheck className='hicon'/>Active Users</p>
+            <p className='icntxt' onClick={()=>navigate('/admin/deactivated-users')}><FaUserTimes className='hicon'/>Deactivated Users</p>
 
         </div>
         {open && <div className="overlay" onClick={() => setOpen(false)}></div>}
