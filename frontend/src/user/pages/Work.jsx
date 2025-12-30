@@ -1,15 +1,15 @@
 import React from 'react'
 import Header from '../components/Header'
-import Dashboard from '../components/Dashboard'
+import WorkComp from '../components/WorkComp'
 import '../styles/home.css'
 
-function Home() {
+function Work() {
   return (
     <div className='myhome'>
       <Header/>
-      <Dashboard/>
+      <WorkComp/>
     </div>
   )
 }
 
-export default Home
+export default Work

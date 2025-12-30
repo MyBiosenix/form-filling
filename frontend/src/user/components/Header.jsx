@@ -1,9 +1,14 @@
 import React, { useState } from 'react'
 import {FiMenu, FiUser} from 'react-icons/fi'
-import '../styles/header.css'
+import { useNavigate } from 'react-router-dom'
+import '../../user/styles/header.css'
+import { FaUser, FaUserShield, FaUsers, FaBoxOpen, FaQuestionCircle, FaUserCheck, FaUserTimes,FaTachometerAlt, FaSignOutAlt, FaKey, FaUserCircle } from 'react-icons/fa'
 
 function Header() {
     const [open, setOpen] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    const navigate = useNavigate();
   return (
     <div>
         <div className='myheader'>
@@ -11,7 +16,7 @@ function Header() {
                 <FiMenu className='menu' onClick={()=>setOpen(!open)}/>
                 <h3>DATA MANAGEMENT SOFTWARE</h3>
             </div>
-            <div className='head2'>
+            <div className='head2' onClick={()=> setShowDropdown(!showDropdown)}>
                 <div className='inhead'>
                     <p className='uname'>Yahoo</p>
                     <p className='uu'>User</p>
@@ -20,8 +25,15 @@ function Header() {
             </div>
         </div>
         <div className={`sidebar ${open? 'open':''}`}>
-            <p>DASHBOARD</p>
-            <p>WORK</p>
+            <p className='icntxt' onClick={()=>navigate('/')}><FaTachometerAlt className='hicon'/>Dashboard</p>
+            <p className='icntxt' onClick={()=>navigate('#')}><FaUserShield className='hicon'/>Work</p>
+
+        </div>
+        {open && <div className="overlay" onClick={() => setOpen(false)}></div>}
+
+        <div className={`dropdown ${showDropdown ? 'showDropdown' : ''}`}>
+            <p>Profile</p>
+            <p>Change Password</p>
         </div>
     </div>
   )

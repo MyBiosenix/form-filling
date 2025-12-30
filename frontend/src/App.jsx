@@ -1,6 +1,7 @@
 import React from 'react'
 import {BrowserRouter as Router, Routes, Route} from 'react-router-dom'
 import Home from './user/pages/Home'
+import Work from './user/pages/Work'
 
 import AdminHome from './admin/pages/AdminHome'
 import MA from './admin/pages/MA'
@@ -18,6 +19,7 @@ function App() {
     <Router>
       <Routes>
         <Route path='/' element={<Home/>}/>
+        <Route path='/work' element={<Work/>}/>
 
         <Route path='/admin' element={<AdminHome/>}/>
         <Route path='/admin/manage-admin' element={<MA/>}/>
