@@ -20,6 +20,7 @@
 .head2{
     display: flex;
     align-items: center;
+    gap: 10px;
     cursor: pointer;
 }
 .inhead{
@@ -27,12 +28,13 @@
     flex-direction: column;
 }
 .uname{
-    font-size: 20px;
+    font-size: 16px;
     margin: 0;
 }
 .uu{
     font-size: 14px;
     margin: 0;
+    color: gray;
 }
 .user{
     font-size: 35px;
@@ -96,6 +98,20 @@
     z-index: 1000;   
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     transition: top 0.3s ease;
+}
+.lop{
+    display: flex;
+    align-items: center;
+    color: white;
+    font-size: 20px;
+    gap: 10px;
+    position: fixed;
+    bottom: 20px;
+    background: red;
+    padding: 5px 10px;
+    border-radius: 5px;
+    text-align: start;
+    cursor: pointer;
 }
 .dropdown.showDropdown{
     display: block;

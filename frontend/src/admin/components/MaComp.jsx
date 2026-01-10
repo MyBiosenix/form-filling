@@ -1,10 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import '../styles/ma.css';
 import { useNavigate } from 'react-router-dom';
-
+import axios from 'axios'
 
 function MaComp() {
+
+  const token = localStorage.getItem('token');
+  const id = localStorage.getItem('adminId');
   const navigate = useNavigate();
+  const [admins, setAdmins] = useState([]);
+
+  const getAdmins = async() => {
+    try{
+      const res = await axios.get('http://localhost:1212/api/admin/get-admin',{
+        headers:{
+          Authorization:`Bearer ${token}`
+        }
+      });
+      setAdmins(res.data);
+    }
+    catch(err){
+      if(err.response && err.response.data && err.response.data.message){
+        alert(err.response.data.message);
+      }
+      else{
+        alert('Error Getting Admins');
+      }
+    }
+  }
+
+  const handleDelete = async(id) => {
+    try{
+      if(!window.confirm('Are You Sure To Delete this Admin?')) return;
+      const res = await axios.delete(`http://localhost:1212/api/admin/${id}/delete-admin`,{
+          headers:{
+            Authorization: `Bearer ${token}`
+          }
+        })
+        getAdmins();
+      }
+      catch(err){
+        Alert(err.message)
+      }
+    }
+
+
+  useEffect(()=>{
+    getAdmins();
+  },[]);
 
   return (
     <div className='comp'>
@@ -35,17 +78,29 @@ function MaComp() {
         <table>
           <thead>
             <tr>
-              <th>Sr.No.</th>
-              <th>Name</th>
-              <th>Admin Type</th>
-              <th>Email Id</th>
-              <th>Password</th>
-              <th>Action</th>
+              <th className='myth'>Sr.No.</th>
+              <th className='myth'>Name</th>
+              <th className='myth'>Admin Type</th>
+              <th className='myth'>Email Id</th>
+              <th className='myth'>Password</th>
+              <th className='myth'>Action</th>
             </tr>
-            <tbody>
-              <td>1</td>
-            </tbody>
           </thead>
+          <tbody className='bodyy'>
+            {admins.map((admin,index)=>(
+              <tr key={admin._id}>
+                <td className='mytd'>{index+1}</td>
+                <td className='mytd'>{admin.name}</td>
+                <td className='mytd'>{admin.role}</td>
+                <td className='mytd'>{admin.email}</td>
+                <td className='mytd'>{admin.password}</td>
+                <td className='mybtnnns'>
+                  <button className='edit' onClick={()=>navigate('/admin/manage-admin/add-admin',{state:{ adminToEdit:admin}})}>Edit</button>
+                  <button className='delete' onClick={()=>handleDelete(admin._id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     </div>

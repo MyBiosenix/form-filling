@@ -13,6 +13,7 @@
 }
 .box{
     width: 100%;
+    background: linear-gradient(180deg, #1b8f2f, #0f7a24);
     box-shadow: 2px 2px 10px gray;
     display: flex;
     flex-direction: column;
@@ -21,7 +22,7 @@
     gap: 10px;
     padding: 20px;
     border-radius: 5px;
-    color: black;
+    color: white;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -43,4 +44,8 @@
 }
 .inbox h5{
     font-size: 25px;
+}
+.forms{
+    margin: 0;
+    text-align: center;
 }

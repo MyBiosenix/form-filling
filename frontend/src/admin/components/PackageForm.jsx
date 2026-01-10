@@ -1,92 +1,115 @@
-import React, { useState, useEffect } from "react";
-import "../Styles/form.css";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState } from 'react'
+import '../styles/form.css'
+import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios'
+import { useEffect } from 'react';
 
 function PackageForm() {
+
   const navigate = useNavigate();
   const location = useLocation();
-  const packageToEdit = location.state?.packageToEdit || null;
 
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [nameError, setNameError] = useState('');
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
+
+  const [price, setPrice] = useState("");
   const [priceError, setPriceError] = useState('');
 
-  useEffect(() => {
-    if (packageToEdit) {
-      setName(packageToEdit.name || '');
-      setPrice(packageToEdit.price || '');
-    }
-  }, [packageToEdit]);
+  const packageToEdit = location.state?.packageToEdit || '';
 
-  const handlePackage = () => {
+  const handlePackage = async() => {
+
+    const token = localStorage.getItem('token');
+
     setNameError('');
     setPriceError('');
 
     let valid = true;
 
-    if (!name.trim()) {
-      setNameError('Package name is required');
+    if(!name || !price){
+      alert('Please Fill all the Fields');
       valid = false;
     }
 
-    if (!price) {
-      setPriceError('Price is required');
+    if(name.length<2){
+      setNameError('Name Length Should atleast be of 2 characters');
       valid = false;
     }
 
-    if (!valid) return;
-
-    // Frontend-only success message
-    if (packageToEdit) {
-      alert("Package updated successfully (Frontend only)");
-    } else {
-      alert("Package added successfully (Frontend only)");
+    if(price.length<2){
+      setPriceError('Price Should be more that 2 digit numbers');
+      valid = false
     }
 
-    navigate('/admin/manage-package');
-  };
+    if(valid){
+      try{
+        if(packageToEdit){
+          const res = await axios.post(`http://localhost:1212/api/admin/${packageToEdit._id}/edit-package`,
+            {
+              name,price
+            },
+            {
+              headers:{
+                Authorization: `Bearer ${token}`
+              }
+            }
+          )
+          alert(res.data.message);
+          navigate('/admin/manage-package');
+        }
+        else{
+          const res = await axios.post('http://localhost:1212/api/admin/create-package',
+            {
+              name,price
+            },
+            {
+              headers:{
+                Authorization: `Bearer ${token}`
+              }
+            }
+          )
+          alert(res.data.message);
+          navigate('/admin/manage-package');
+        }
+      }
+      catch(err){
+        if(err.response && err.response.data && err.response.data.message){
+          alert(err.response.data.message);
+        }
+        else{
+          alert('Package Creation Failed');
+        }
+      }
+    }
+  } 
+
+  useEffect(()=>{
+    if(packageToEdit){
+      setName(packageToEdit.name||'');
+      setPrice(packageToEdit.price||'');
+    }
+  },[packageToEdit]);
 
   return (
-    <div className="asacomp">
-      <h3>{packageToEdit ? 'Edit Package' : 'Add Package'}</h3>
+    <div className='userform'>
+      <h2>{packageToEdit ? 'Edit Package':'Add Package'}</h2>
+      <div className='form1'>
+        <h3>Enter Basic Details</h3>
+        <div className='inform'>
 
-      <div className="inasacomp">
-        <h4>Enter Basic Details</h4>
+          <input type='text' placeholder='Enter Name*' value={name} required onChange={(e)=>setName(e.target.value)}/>
+          {nameError ? <p style={{color:'red'}}>{nameError}</p>:''}
 
-        <div className="form">
-          <input
-            type="text"
-            value={name}
-            placeholder="Enter Package Name*"
-            onChange={(e) => setName(e.target.value)}
-          />
-          {nameError && <p className="error">{nameError}</p>}
-
-          <input
-            type="number"
-            value={price}
-            placeholder="Enter Price (Per Paragraph)*"
-            onChange={(e) => setPrice(e.target.value)}
-          />
-          {priceError && <p className="error">{priceError}</p>}
+          <input type='number' value={price} onChange={(e) => setPrice(e.target.value)} placeholder='Enter Package Price' required/>
+          {priceError ? <p style={{color:'red'}}>{priceError}</p>:''}
         </div>
-
-        <div className="bttns">
-          <button
-            className="cancel"
-            onClick={() => navigate('/admin/manage-package')}
-          >
-            Cancel
-          </button>
-
-          <button className="submit" onClick={handlePackage}>
-            {packageToEdit ? 'Update' : 'Submit'}
-          </button>
+        <div className='btnnns'>
+          <button className='cancel' onClick={()=>navigate('/admin/manage-package')}>Cancel</button>
+          <button className='submit' onClick={handlePackage}>Submit</button>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default PackageForm;
+export default PackageForm

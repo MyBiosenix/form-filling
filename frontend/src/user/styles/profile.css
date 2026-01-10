@@ -1,0 +1,23 @@
+.profile{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 17px;
+}
+.inpro{
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: linear-gradient(180deg, #1b8f2f, #0f7a24);
+    color: white;
+    padding: 10px 20px;
+    width: 400px;
+    border-radius: 5px;
+}
+.inpro h2{
+    margin: 0;
+    text-align: center;
+}
+.inpro p{
+    margin: 0;
+}

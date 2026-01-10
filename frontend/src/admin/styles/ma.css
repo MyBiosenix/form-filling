@@ -41,7 +41,7 @@ html, body {
     display: flex;
     gap: 20px;
     margin: 0;
-    background: black;
+    background: linear-gradient(180deg, #1b8f2f, #0f7a24);
     padding: 10px 50px;
     color: white;
     border-radius: 6px;
@@ -52,25 +52,30 @@ html, body {
     cursor: pointer;
 }
 .type{
-    background: black;
+    background: linear-gradient(180deg, #1b8f2f, #0f7a24);
     border-radius: 4px;
     padding: 10px 50px;
     width: 300px;
 }
-table {
-  border-collapse: collapse;
+
+.mytable{
+    border-collapse: collapse;
+    table-layout: fixed;
+    background: white;
 }
-th{
-    background: black;
+.myth{
+    background: linear-gradient(180deg, #1b8f2f, #0f7a24);
     color: white;
-    font-size: 18px;
+    font-size: 15px !important;
     padding: 5px 10px;
+    text-align: center !important;
 }
-td{
+.mytd{
     border: 1px solid #ddd;
-    text-align: center;
+    text-align: center !important;
     padding: 10px;
-    font-size: 16px;
+    font-size: 15px !important;
+    color: black;
 }
 .mybtnnns{
     display: flex;

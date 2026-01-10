@@ -1,95 +1,145 @@
-import React, { useState, useEffect } from "react";
-import "../Styles/form.css";
+import React, { useState } from 'react'
+import '../styles/form.css'
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from "axios";
+import axios from 'axios'
+import { useEffect } from 'react';
 
 function AdminForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const packageToEdit = location.state?.packageToEdit || null;
 
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [nameError, setNameError] = useState('');
-  const [priceError, setPriceError] = useState('');
+  const adminToEdit = location.state?.adminToEdit || null;
 
-  useEffect(() => {
-    if (packageToEdit) {
-      setName(packageToEdit.name || '');
-      setPrice(packageToEdit.price || '');
-    }
-  }, [packageToEdit]);
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
 
-  const handlePackage = async () => {
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const [admin, setAdmin] = useState("");
+  
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const [cnfPassword, setcnfPassword] = useState("");
+
+  const handleAdmin = async() => {
+
+    const token = localStorage.getItem('token');
+
     setNameError('');
-    setPriceError('');
+    setEmailError('');
+    setPasswordError('');
 
     let valid = true;
-    if (!name) {
-      setNameError('Package name is required');
-      valid = false;
-    }
-    if (!price) {
-      setPriceError('Price is required');
+
+    if(!name || !email || !admin || !password || !cnfPassword){
+      alert('Please Fill all the Fields');
       valid = false;
     }
 
-    if (!valid) return;
+    if(name.length<2){
+      setNameError('Name Length Should atleast be of 2 characters');
+      valid = false;
+    }
 
-    try {
-      if (packageToEdit) {
-        const res = await axios.put(
-          `https://api.freelancing-project.com/api/package/${packageToEdit._id}/edit-package`,
-          { name, price }
-        );
-        alert(res.data.message || "Package updated successfully");
-      } else {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Invalid email format');
+      valid = false;
+    }
 
-        const res = await axios.post(
-          'https://api.freelancing-project.com/api/package/create-package',
-          { name, price }
-        );
-        alert(res.data.message || "Package added successfully");
+    if(password.length<3){
+      setPasswordError('Password Length Should Atleast be of 3');
+      valid = false;
+    }
+    
+    if(cnfPassword !== password){
+      alert('Passwords are not Matching');
+      valid = false;
+    }
+
+    if(valid){
+      try{
+        if(adminToEdit){
+          const res = await axios.post(`http://localhost:1212/api/admin/${adminToEdit._id}/edit-admin`,{
+              name,email,role:admin,password,
+            },
+            {
+              headers:{
+                Authorization:`Bearer ${token}`
+              }
+            }
+          );
+          alert(res.data.message);
+          navigate('/admin/manage-admin');
+        }
+        else{
+          const res = await axios.post('http://localhost:1212/api/admin/create-admin',{
+            name,email,role:admin,password,
+          },
+          {
+            headers:{
+              Authorization:`Bearer ${token}`
+            }
+          }
+          );
+          alert(res.data.message);
+          navigate('/admin/manage-admin')
+        }
       }
-      navigate('/admin/manage-package');
-    } catch (err) {
-      alert(err.response?.data?.message || "Server error");
+      catch(err){
+        if(err.response && err.response.data && err.response.data.message){
+          alert(err.response.data.message);
+        }
+        else{
+          alert('Admin Creation Failed');
+        }
+      }
     }
-  };
+  }
+
+  useEffect(()=>{
+    if(adminToEdit) {
+      setName(adminToEdit.name || '');
+      setEmail(adminToEdit.email || '');
+      setAdmin(adminToEdit.role || '');
+      setPassword(adminToEdit.password || '');
+    }
+  },[adminToEdit])
 
   return (
-    <div className="asacomp">
-      <h3>{packageToEdit ? 'Edit Package' : 'Add Package'}</h3>
-      <div className="inasacomp">
-        <h4>Enter Basic Details</h4>
-        <div className="form">
-          <input
-            type="text"
-            value={name}
-            placeholder="Enter Package Name*"
-            onChange={(e) => setName(e.target.value)}
-          />
-          {nameError && <p className="error">{nameError}</p>}
+    <div className='userform'>
+      <h2>{adminToEdit ? 'Edit Admin' : 'Add Admin'}</h2>
+      <div className='form1'>
+        <h3>Enter Basic Details</h3>
+        <div className='inform'>
 
-          <input
-            type="number"
-            value={price}
-            placeholder="Enter Price (Per Paragraph)*"
-            onChange={(e) => setPrice(e.target.value)}
-          />
-          {priceError && <p className="error">{priceError}</p>}
+          <input type='text' placeholder='Enter Name*' value={name} required onChange={(e)=>setName(e.target.value)}/>
+          {nameError ? <p>{nameError}</p>:''}
+
+          <input type='text' placeholder='Enter Email Id*' value={email} required onChange={(e)=>setEmail(e.target.value)}/>
+          {emailError ? <p>{emailError}</p>:''}
+
+          <select value={admin} onChange={(e) => setAdmin(e.target.value)}>
+            <option value="">Select Admin Type</option>
+            <option value="superadmin">Super Admin</option>
+            <option value="admin">Admin</option>
+          </select>
+
+          <input type='text' placeholder='Enter Password' value={password} onChange={(e)=>setPassword(e.target.value)}/>
+          {passwordError ? <p>{passwordError}</p>:''}
+
+          <input type='text' placeholder='Confirm Password' value={cnfPassword} onChange={(e)=>setcnfPassword(e.target.value)}/>
+          
         </div>
-
-        <div className="bttns">
-          <button className="cancel" onClick={() => navigate('/admin/manage-package')}>
-            Cancel
-          </button>
-          <button className="submit" onClick={handlePackage}>
-            {packageToEdit ? 'Update' : 'Submit'}
-          </button>
+        <div className='btnnns'>
+          <button className='cancel' onClick={()=>navigate('/admin/manage-admin')}>Cancel</button>
+          <button className='submit' onClick={handleAdmin}>Submit</button>
         </div>
       </div>
     </div>
-  );
+  )
 }
-export default AdminForm;
+
+export default AdminForm
