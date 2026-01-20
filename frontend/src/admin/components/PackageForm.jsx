@@ -44,7 +44,7 @@ function PackageForm() {
     if(valid){
       try{
         if(packageToEdit){
-          const res = await axios.post(`http://localhost:1212/api/admin/${packageToEdit._id}/edit-package`,
+          const res = await axios.post(`https://api.freelancing-projects.com/api/admin/${packageToEdit._id}/edit-package`,
             {
               name,price
             },
@@ -58,7 +58,7 @@ function PackageForm() {
           navigate('/admin/manage-package');
         }
         else{
-          const res = await axios.post('http://localhost:1212/api/admin/create-package',
+          const res = await axios.post('https://api.freelancing-projects.com/api/admin/create-package',
             {
               name,price
             },

@@ -12,12 +12,10 @@ function UserLogin() {
 
   const [showPassword, setShowPassword] = useState(false);
 
-  // ✅ prevents flicker while checking existing session
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   const navigate = useNavigate();
 
-  // ✅ If already logged in (same browser) -> redirect to /home
   useEffect(() => {
     const checkAlreadyLoggedIn = async () => {
       const token = localStorage.getItem("token");
@@ -30,7 +28,7 @@ function UserLogin() {
 
       try {
         // Your backend route: router.get('/me', loginMiddleware, me);
-        await axios.get("http://localhost:1212/api/user/me", {
+        await axios.get("https://api.freelancing-projects.com/api/user/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -71,7 +69,7 @@ function UserLogin() {
     if (!valid) return;
 
     try {
-      const res = await axios.post("http://localhost:1212/api/user/login", {
+      const res = await axios.post("https://api.freelancing-projects.com/api/user/login", {
         email,
         password,
         forceLogin,
