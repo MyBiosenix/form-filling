@@ -49,3 +49,29 @@
     margin: 0;
     text-align: center;
 }
+
+@media (max-width:450px){
+    .mydassh h3{
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+    .boxes{
+        flex-direction: column;
+    }
+    .box{
+        width: 90%;
+        
+    }
+    .icn{
+        font-size: 30px;
+    }
+    .inbox h5{
+        font-size: 20px;
+    }
+    .inbox h4{
+        font-size: 25px;
+    }
+    .forms{
+        font-size: 15px;
+    }
+}

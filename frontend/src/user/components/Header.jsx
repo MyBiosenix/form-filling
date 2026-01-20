@@ -24,7 +24,7 @@ function Header() {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
         localStorage.removeItem('userId');
-        navigate('/login');
+        navigate('/');
     }
   return (
     <div>
@@ -42,7 +42,7 @@ function Header() {
             </div>
         </div>
         <div className={`sidebar ${open? 'open':''}`}>
-            <p className='icntxt' onClick={()=>navigate('/')}><FaTachometerAlt className='hicon'/>Dashboard</p>
+            <p className='icntxt' onClick={()=>navigate('/home')}><FaTachometerAlt className='hicon'/>Dashboard</p>
             <p className='icntxt' onClick={()=>navigate('/work')}><FaUserShield className='hicon'/>Work</p>
             
             <h5 className='lop' onClick={handleLogout}><FaSignOutAlt/>Logout</h5>
@@ -51,7 +51,7 @@ function Header() {
 
         <div className={`dropdown ${showDropdown ? 'showDropdown' : ''}`}>
             <p onClick={()=>navigate('/profile')}>Profile</p>
-            <p>Change Password</p>
+            <p onClick={()=>navigate('/change-password')}>Change Password</p>
         </div>
     </div>
   )

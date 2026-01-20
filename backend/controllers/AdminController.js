@@ -3,6 +3,8 @@ const Packagee = require('../models/Package');
 const User = require('../models/User');
 const FormEntry = require('../models/FormEntry');
 const jwt = require('jsonwebtoken');
+const FinalReport = require('../models/FinalReport');
+const mongoose = require('mongoose');
 
 exports.login = async(req,res) => {
     try{
@@ -274,16 +276,37 @@ exports.activateUser = async(req,res) => {
     }
 }
 
-exports.deleteUser = async(req,res) => {
-    try{
-        const {id} = req.params;
-        await User.findByIdAndDelete(id);
-        res.status(200).json({message:'Admin Deleted Succesfully'});
+exports.deleteUser = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { id } = req.params;
+
+    session.startTransaction();
+
+    await FormEntry.deleteMany({ userId: id }).session(session);
+
+    await FinalReport.deleteMany({ userId: id }).session(session);
+
+    const deletedUser = await User.findByIdAndDelete(id).session(session);
+    if (!deletedUser) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "User not found" });
     }
-    catch(err){
-        res.status(500).json({message: err.message});
-    }
-}
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      message: "User and all related records deleted successfully",
+      userId: id,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(500).json({ message: err.message });
+  } finally {
+    session.endSession();
+  }
+};
 
 exports.getActiveUsers = async(req,res) => {
     try{
@@ -324,7 +347,6 @@ exports.getdashStats = async(req,res) => {
     }
 }
 
-
 exports.getReports = async (req, res) => {
   try {
     const { id } = req.params;
@@ -340,3 +362,93 @@ exports.getReports = async (req, res) => {
   }
 };
 
+exports.saveReport = async (req, res) => {
+  try {
+    const { formNo, mistakes, mistakePercent, visible } = req.body;
+    const { userId } = req.params;
+
+    console.log("SAVE REPORT →", { userId, formNo, visible });
+
+    if (!userId || formNo === undefined) {
+      return res.status(400).json({ message: "userId or formNo missing" });
+    }
+
+    if (visible) {
+      const report = await FinalReport.findOneAndUpdate(
+        { userId, formNo },
+        { mistakes, mistakePercent },
+        { upsert: true, new: true }
+      );
+
+      return res.status(200).json(report);
+    } else {
+      await FinalReport.findOneAndDelete({ userId, formNo });
+      return res.status(200).json({ message: "Report removed" });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: err.message });
+  }
+};
+exports.getSavedReports = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const reports = await FinalReport.find({ userId })
+      .select("formNo") // only need formNo to mark checkbox checked
+      .lean();
+
+    return res.status(200).json(reports);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getFinalReports = async(req,res) => {
+    try{
+        const {userId} = req.params;
+
+        if(!userId){
+            return res.status(400).json({ message: "userId missing" });
+        }
+        const reports = await FinalReport.find({ userId })
+            .select("formNo mistakes mistakePercent createdAt updatedAt") // full info for table
+            .sort({ formNo: 1 })
+            .lean();
+
+        return res.status(200).json(reports);
+    }
+    catch(err){
+        return res.status(500).json({ message: err.message });
+    }
+}
+
+exports.updateReportCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { formNo, mistakes } = req.body;
+
+    if (!userId || formNo === undefined) {
+      return res.status(400).json({ message: "userId or formNo missing" });
+    }
+
+    const count = Number(mistakes);
+    if (!Number.isFinite(count) || count < 0) {
+      return res.status(400).json({ message: "Invalid mistakes count" });
+    }
+
+    const existing = await FinalReport.findOne({ userId, formNo });
+    if (!existing) {
+      return res.status(404).json({ message: "Report not selected yet (enable Set Visible first)" });
+    }
+
+    existing.mistakes = count;
+    existing.mistakePercent = count;
+    await existing.save();
+
+    return res.status(200).json(existing);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: err.message });
+  }
+};

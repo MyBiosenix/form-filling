@@ -2,46 +2,74 @@ const User = require('../models/User');
 const FormEntry = require('../models/FormEntry');
 const jwt = require('jsonwebtoken');
 const mongoose = require("mongoose");
+const FinalReport = require('../models/FinalReport');
 
-exports.login = async(req,res) => {
-    try{
-        const {email, password} = req.body;
-        const user = await User.findOne({email}).populate('packages','name').populate('admin','name');
-        if(!user){
-            return res.status(400).json({message:'User Does Not Exists'});
-        }
-        if(password!==user.password){
-            return res.status(400).json({message:'Incorrect Password'})
-        }
-        if(!user.status){
-            return res.status(400).json({message:'Your Account has been deactivated. Please Contact Admin'});
-        }
-        const token = jwt.sign(
-            {id:user._id},
-            process.env.JWT_SECRET,
-            {expiresIn: '30d'}
-        );
+exports.login = async (req, res) => {
+  try {
+    const { email, password, forceLogin } = req.body;
 
-        res.status(200).json({
-            message:'Login Succesful',
-            token,
-            user:{
-                id:user._id,
-                name:user.name,
-                email:user.email,
-                mobile:user.mobile,
-                admin:user.admin?.name,
-                packages:user.packages?.name,
-                price:user?.price,
-                expiry:user?.expiry,
-                status:user.status
-            }
-        })
+    const user = await User.findOne({ email })
+      .populate('packages', 'name')
+      .populate('admin', 'name');
+
+    if (!user) return res.status(400).json({ message: 'User Does Not Exists' });
+
+    if (password !== user.password)
+      return res.status(400).json({ message: 'Incorrect Password' });
+
+    if (!user.status)
+      return res.status(400).json({ message: 'Your Account has been deactivated. Please Contact Admin' });
+
+    if (user.lastLoginSession && !forceLogin) {
+      return res.status(409).json({
+        message: 'You are already logged in on another device. Click login again to continue.',
+        requiresForceLogin: true
+      });
     }
-    catch(err){
-        res.status(500).json({message:err.message});
-    }
-}
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    user.lastLoginSession = token;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Login Succesful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        admin: user.admin?.name,
+        packages: user.packages?.name,
+        price: user?.price,
+        expiry: user?.expiry,
+        status: user.status
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.lastLoginSession = null;
+    await user.save();
+
+    res.status(200).json({ message: "Logout successful" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error during logout" });
+  }
+};
+
 
 
 exports.getNextFormNo = async (req, res) => {
@@ -65,10 +93,6 @@ exports.getNextFormNo = async (req, res) => {
 exports.saveResponses = async (req, res) => {
   try {
     const { excelRowId, responses } = req.body;
-
-    if (!excelRowId || !responses) {
-      return res.status(400).json({ message: "Missing Data" });
-    }
 
     const last = await FormEntry.findOne({ userId: req.userId })
       .sort({ formNo: -1 })
@@ -158,3 +182,28 @@ exports.ChangePassword = async(req,res) => {
     res.status(500).json({message:err.message});
   }
 }
+
+exports.me = async (req, res) => {
+  res.json({
+    _id: req.user?.id || req.userId,
+  });
+};
+
+exports.getMyFinalReports = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const reports = await FinalReport.find({ userId })
+      .select("formNo mistakes mistakePercent createdAt updatedAt")
+      .sort({ formNo: 1 })
+      .lean();
+
+    return res.status(200).json(reports);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage } = require('../controllers/AdminController');
+const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount } = require('../controllers/AdminController');
 
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -30,6 +30,13 @@ router.get('/get-activeusers',authMiddleware,getActiveUsers);
 router.get('/get-inactiveusers',authMiddleware,getInActiveUsers);
 router.get('/get-dashstats',authMiddleware,getdashStats);
 router.get('/:id/get-reports',authMiddleware,getReports);
+
+router.post('/:userId/save-reports',authMiddleware,saveReport);
+router.get('/:userId/get-savedreports',authMiddleware,getSavedReports);
+
+router.get('/:userId/get-finalreports',authMiddleware,getFinalReports);
+
+router.put('/:userId/update-count',authMiddleware,updateReportCount)
 
 
 module.exports = router;

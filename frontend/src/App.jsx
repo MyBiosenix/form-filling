@@ -6,6 +6,7 @@ import UserLogin from './user/pages/userLogin'
 import View from './user/pages/View'
 import Profile from './user/pages/Profile'
 import ChangePass from './user/pages/ChangePass'
+import Result from './user/pages/Result'
 
 import Login from './admin/pages/Login'
 import AdminHome from './admin/pages/AdminHome'
@@ -18,18 +19,20 @@ import AddPackage from './admin/pages/AddPackage'
 import AU from './admin/pages/AU'
 import DU from './admin/pages/DU'
 import Report from './admin/pages/Report'
+import AdminChangePass from './user/pages/ChangePass'
 
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path='/login' element={<UserLogin/>}/>
-        <Route path='/' element={<Home/>}/>
+        <Route path='/' element={<UserLogin/>}/>
+        <Route path='/home' element={<Home/>}/>
         <Route path='/work' element={<Work/>}/>
         <Route path='/entries' element={<View/>}/>
         <Route path='/profile' element={<Profile/>}/>
         <Route path='/change-password' element={<ChangePass/>}/>
+        <Route path='/result' element={<Result/>}/>
 
         <Route path='/admin/login' element={<Login/>}/>
         <Route path='/admin/dashboard' element={<AdminHome/>}/>
@@ -48,5 +51,4 @@ function App() {
     
   )
 }
-
 export default App

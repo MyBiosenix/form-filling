@@ -73,12 +73,12 @@ function Dashboard() {
                 </div>
             </div>
 
-            <div className='box'>
+            <div className='box' onClick={()=>navigate('/result')}>
                 <FaChartLine className='icn'/>
                 <div className='inbox'>
                     <h5>Report</h5>
                     <h4>0</h4>
-                    <p className='forms'>Under Review</p>
+                    <p className='forms'>My Reports</p>
                 </div>
             </div>
         </div>

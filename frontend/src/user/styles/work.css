@@ -4,9 +4,9 @@
   padding: 24px;
   background: #f1f3f6;
   font-family: "Segoe UI", Roboto, Arial, sans-serif;
-  height: 100vh;
   box-sizing: border-box;
   color: black;
+  height: 100vh;
 }
 
 .tble {
@@ -47,9 +47,11 @@ th {
   top: 0;
   z-index: 2;
 }
+
 td {
   color: black;
 }
+
 tbody tr:nth-child(even) {
   background: #fafafa;
 }
@@ -68,21 +70,28 @@ tbody tr:hover {
   scrollbar-width: thin;
   scrollbar-color: #006408 #f9f3e3;
 }
+.fir{
+  margin-bottom: 14px;
+}
 
 .form-grid {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
 .form-group{
   display: flex;
   flex-direction: column;
 }
+
 .form-group label {
-  font-size: 13px;
-  color: #5f6368;
+  font-size: 15px;
+  color: #000000;
+  font-weight: bold;
   margin-bottom: 4px;
 }
+
 .form-group input {
   border: none;
   border-bottom: 2px solid #dadce0;
@@ -92,6 +101,10 @@ tbody tr:hover {
   font-size: 14px;
   outline: none;
 }
+.form-group input::placeholder {
+  color: rgb(155, 154, 154);
+}
+
 .form-group input:focus {
   border-bottom-color: #673ab7;
 }
@@ -105,12 +118,15 @@ tbody tr:hover {
   border-radius: 4px;
   cursor: pointer;
 }
+
 .excel-table {
   outline: none;
 }
+
 .cell {
   cursor: cell;
 }
+
 .cell.selected {
   background: #e8f0fe;
   outline: 2px solid #1a73e8;
@@ -119,4 +135,40 @@ tbody tr:hover {
 
 .excel-table:focus {
   box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+@media (max-width:450px){
+  .wrk{
+    flex-direction: column;
+    padding: 10px;
+    
+  }
+  .tble{
+    width: 95%;
+    height: 300px !important;
+    padding: 10px !important;
+  }
+  .tble h2{
+    font-size: 14px
+  }
+  .form{
+    width: 95%;
+    padding: 10px;
+  }
+  .form h2{
+    font-size: 14px;
+  }
+  .form-group label{
+    font-size: 13px;
+  }
+  .form-group input {
+    font-size: 12px;
+  }
+  table{
+    font-size: 10px !important;
+  }
+  th,td{
+    padding: 3px !important;
+  }
+
 }

@@ -1,0 +1,269 @@
+body {
+  color: #111;
+  background: #f3f5f9;
+}
+
+.myworkk {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.topRow {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.wrk1,
+.myres {
+  flex: 1;
+  min-width: 0;
+}
+
+.tble1,
+.myres {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e6eaf0;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.06);
+  padding: 16px;
+}
+
+.tble1 {
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.myres {
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tble1 h2,
+.myres h2 {
+  margin: 0 0 12px 0;
+  color: #111;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.tble1 > *:last-child {
+  min-height: 0;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid #e6eaf0;
+}
+
+.excel-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.excel-table th,
+.excel-table td {
+  white-space: nowrap;
+}
+
+.rc-empty {
+  padding: 12px;
+  color: #6b7280;
+}
+
+.rc-tableWrap {
+  overflow: auto;
+  border-radius: 10px;
+  height: 600px;
+  border: 1px solid #e6eaf0;
+  scrollbar-width: thin;
+  scrollbar-color: green white;
+  min-height: 0;
+}
+
+.rc-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: #0b7a39;
+  color: #fff;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+thead tr th:first-child {
+  border-top-left-radius: 10px;
+}
+thead tr th:last-child {
+  border-top-right-radius: 10px;
+}
+
+tbody tr:hover td {
+  background: #f7fafc;
+}
+
+@media (max-width: 1100px) {
+  .topRow {
+    flex-direction: column;
+  }
+  .tble1,
+  .myres {
+    height: auto;
+    max-height: 70vh;
+  }
+}
+
+.finalCard{
+  margin-top: 18px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e6eaf0;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.06);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.finalHead{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.finalHead h3{
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+.finalPill{
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #eaffea;
+  color: #0b7a39;
+  border: 1px solid #b7f0c2;
+}
+
+.finalTableWrap{
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid #e6eaf0;
+  min-height: 0;
+}
+
+.finalTable{
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.finalTable th,
+.finalTable td{
+  padding: 10px 12px;
+  border-bottom: 1px solid #e6eaf0;
+  border-right: 1px solid #e6eaf0;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.finalTable th{
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #0b7a39;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.finalTable thead tr th:first-child{
+  border-top-left-radius: 10px;
+}
+.finalTable thead tr th:last-child{
+  border-top-right-radius: 10px;
+}
+
+.finalTable tbody tr:hover td{
+  background: #f7fafc;
+}
+
+.finalEmpty{
+  text-align: center;
+  padding: 18px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.finalStrong{
+  font-weight: 700;
+  color: #111;
+}
+
+.finalMuted{
+  color: #6b7280;
+}
+
+.finalHint{
+  margin-top: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.finalTableWrap::-webkit-scrollbar{
+  height: 10px;
+  width: 10px;
+}
+
+.finalTableWrap::-webkit-scrollbar-track{
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.finalTableWrap::-webkit-scrollbar-thumb{
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+.finalTableWrap::-webkit-scrollbar-thumb:hover{
+  background: #94a3b8;
+}
+
+.finalTableWrap{
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.finalTotalRow td{
+  background: #f8fafc;
+  font-weight: 800;
+}
+
+@media (max-width: 900px){
+  .finalCard{
+    padding: 14px;
+  }
+}

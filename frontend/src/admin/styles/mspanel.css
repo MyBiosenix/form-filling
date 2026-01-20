@@ -1,0 +1,203 @@
+/* ===== Mistakes Summary Professional UI ===== */
+.msWrap {
+  margin-top: 18px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e7e7e7;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.msHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.msHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111;
+}
+
+.msHeader p {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.msGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.msCard {
+  background: #fff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  overflow: auto;
+  height: 500px;
+  scrollbar-width: thin;
+  scrollbar-color: green white;
+}
+
+.msCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #efefef;
+  background: linear-gradient(180deg, #fafafa, #ffffff);
+}
+
+.msCardTop h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #111;
+}
+
+.msPill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+.msPillGreen {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #065f46;
+}
+
+.msTableWrap {
+  width: 100%;
+  overflow: auto;
+}
+
+.msTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.msTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #0f7a2a; /* professional green */
+  color: #fff;
+  padding: 10px 12px;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}
+
+.msTable tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  white-space: nowrap;
+  color: #111;
+}
+
+.msTable tbody tr:hover td {
+  background: #fafafa;
+}
+
+.msStrong {
+  font-weight: 800;
+}
+
+.msMuted {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.msCenter {
+  text-align: center;
+}
+
+.msTotalRow td {
+  background: #f6f7f9;
+  border-top: 1px solid #e9e9e9;
+}
+
+.msNote,
+.msHint {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #555;
+  border-top: 1px solid #efefef;
+  background: #fff;
+}
+
+.msEmpty {
+  text-align: center;
+  color: #6b7280;
+  padding: 18px 12px !important;
+}
+
+.msSwitch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.msSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.msSlider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #e5e7eb;
+  border-radius: 999px;
+  transition: 0.2s ease;
+  border: 1px solid #d1d5db;
+}
+
+.msSlider:before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.msSwitch input:checked + .msSlider {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.msSwitch input:checked + .msSlider:before {
+  transform: translate(20px, -50%);
+}
+
+@media (max-width: 1100px) {
+  .msGrid {
+    grid-template-columns: 1fr;
+  }
+  .msTable {
+    min-width: 640px;
+  }
+}

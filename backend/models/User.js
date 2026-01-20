@@ -45,7 +45,8 @@ const userSchema = new mongoose.Schema({
     status:{
         type:Boolean,
         default:true
-    }
+    },
+    lastLoginSession: { type: String, default: null },
 })
 
 module.exports = mongoose.model("User",userSchema);

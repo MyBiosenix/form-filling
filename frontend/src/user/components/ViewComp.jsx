@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import '../styles/view.css'
 
-function MyResponses() {
+function MyResponses({ title = "My Responses" }) {
   const [entries, setEntries] = useState([]);
-  const [headers, setHeaders] = useState([]);
 
   useEffect(() => {
     const fetchEntries = async () => {
@@ -11,18 +11,12 @@ function MyResponses() {
         const token = localStorage.getItem("token");
 
         const res = await axios.get("http://localhost:1212/api/user/entries", {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         const data = res.data || [];
-
         data.sort((a, b) => a.formNo - b.formNo);
-
         setEntries(data);
-
-        if (data.length > 0) {
-          setHeaders(Object.keys(data[0].responses || {}));
-        }
       } catch (err) {
         console.log(err);
         alert("Failed to load responses");
@@ -32,23 +26,30 @@ function MyResponses() {
     fetchEntries();
   }, []);
 
+  const headers = useMemo(() => {
+    if (!entries.length) return [];
+    return Object.keys(entries[0]?.responses || {});
+  }, [entries]);
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2 style={{color:'black'}}>My Responses</h2>
+    <section className="rc-card">
+      <div className="rc-cardHeader">
+        <h3 className="rc-title">{title}</h3>
+        <p className="rc-subtitle">Your submitted forms and their captured responses</p>
+      </div>
 
-      {entries.length === 0 ? (
-        <p>No data found</p>
+      {!entries.length ? (
+        <div className="rc-empty">No data found</div>
       ) : (
-        <div style={{ overflow: "auto", border: "1px solid #ccc", scrollbarWidth:'thin', scrollbarColor:'#006408 #f9f3e3' }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
+        <div className="rc-tableWrap">
+          <table className="rc-table">
             <thead>
               <tr>
-                <th style={th}>Form No</th>
-                <th style={th}>Excel Row ID</th>
-                <th style={th}>Date</th>
+                <th>Form No</th>
+                <th>Excel Row ID</th>
+                <th>Date</th>
                 {headers.map((h) => (
-                  <th key={h} style={th}>{h}</th>
+                  <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -56,12 +57,11 @@ function MyResponses() {
             <tbody>
               {entries.map((e) => (
                 <tr key={e._id}>
-                  <td style={td}>{e.formNo}</td>
-                  <td style={td}>{e.excelRowId}</td>
-                  <td style={td}>{new Date(e.createdAt).toLocaleString()}</td>
-
+                  <td>{e.formNo}</td>
+                  <td>{e.excelRowId}</td>
+                  <td>{new Date(e.createdAt).toLocaleString()}</td>
                   {headers.map((h) => (
-                    <td key={h} style={td}>{e.responses?.[h] || ""}</td>
+                    <td key={h}>{e.responses?.[h] || ""}</td>
                   ))}
                 </tr>
               ))}
@@ -69,11 +69,8 @@ function MyResponses() {
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }
-
-const th = { border: "1px solid #ddd", padding: "8px", background: "green", whiteSpace: "nowrap" };
-const td = { border: "1px solid #ddd", padding: "8px", whiteSpace: "nowrap" };
 
 export default MyResponses;
