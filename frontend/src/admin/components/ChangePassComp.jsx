@@ -17,7 +17,7 @@ function ChangePassComp() {
   
   const handleChangePass = async() => {
     try{
-        const res = await axios.put(`http://localhost:1212/api/user/${id}/change-password`,{
+        const res = await axios.put(`https://api.freelancing-project.com/api/user/${id}/change-password`,{
             password,newpassword:newPassword
         },
         {

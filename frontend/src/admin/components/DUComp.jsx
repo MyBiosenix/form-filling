@@ -17,7 +17,7 @@ function DUComp() {
   const getInActiveUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:1212/api/admin/get-inactiveusers",
+        "https://api.freelancing-project.com/api/admin/get-inactiveusers",
         {
           headers: {
             Authorization: `Bearer ${token}`,

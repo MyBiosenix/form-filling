@@ -12,7 +12,7 @@ function Dashboard() {
     const token = localStorage.getItem('token');
     const getDashboardStats = async() => {
         try{
-            const res = await axios.get('http://localhost:1212/api/admin/get-dashstats',
+            const res = await axios.get('https://api.freelancing-project.com/api/admin/get-dashstats',
                 {
                     headers:{
                         Authorization:`Bearer ${token}`

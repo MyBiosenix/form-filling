@@ -62,7 +62,7 @@ function AdminForm() {
     if(valid){
       try{
         if(adminToEdit){
-          const res = await axios.post(`http://localhost:1212/api/admin/${adminToEdit._id}/edit-admin`,{
+          const res = await axios.post(`https://api.freelancing-project.com/api/admin/${adminToEdit._id}/edit-admin`,{
               name,email,role:admin,password,
             },
             {
@@ -75,7 +75,7 @@ function AdminForm() {
           navigate('/admin/manage-admin');
         }
         else{
-          const res = await axios.post('http://localhost:1212/api/admin/create-admin',{
+          const res = await axios.post('https://api.freelancing-project.com/api/admin/create-admin',{
             name,email,role:admin,password,
           },
           {

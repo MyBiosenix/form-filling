@@ -99,7 +99,7 @@ function ReportComp() {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `http://localhost:1212/api/admin/${userId}/get-reports`,
+          `https://api.freelancing-project.com/api/admin/${userId}/get-reports`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -122,7 +122,7 @@ function ReportComp() {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
-        `http://localhost:1212/api/admin/${userId}/get-finalreports`,
+        `https://api.freelancing-project.com/api/admin/${userId}/get-finalreports`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -157,7 +157,7 @@ function ReportComp() {
       };
 
       const res = await axios.post(
-        `http://localhost:1212/api/admin/${userId}/save-reports`,
+        `https://api.freelancing-project.com/api/admin/${userId}/save-reports`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );

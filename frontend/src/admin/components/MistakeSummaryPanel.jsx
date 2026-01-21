@@ -60,7 +60,7 @@ export default function MistakeSummaryPanel({
       const token = localStorage.getItem("token");
 
       await axios.put(
-        `http://localhost:1212/api/admin/${userId}/update-count`,
+        `https://api.freelancing-project.com/api/admin/${userId}/update-count`,
         { formNo: row.formNo, mistakes: count },
         { headers: { Authorization: `Bearer ${token}` } }
       );

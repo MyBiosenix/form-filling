@@ -32,7 +32,7 @@ function UserForm() {
 
   const getAdminNames = async() => {
     try{
-      const res = await axios.get('http://localhost:1212/api/admin/getadminname',{
+      const res = await axios.get('https://api.freelancing-project.com/api/admin/getadminname',{
         headers:{
           Authorization: `Bearer ${token}`
         }
@@ -51,7 +51,7 @@ function UserForm() {
 
   const getPackageNames = async() => {
     try{
-      const res = await axios.get('http://localhost:1212/api/admin/getpackagename',{
+      const res = await axios.get('https://api.freelancing-project.com/api/admin/getpackagename',{
         headers:{
           Authorization: `Bearer ${token}`
         }
@@ -100,7 +100,7 @@ function UserForm() {
     if(valid){
       try{
         if(userToEdit){
-          const res = await axios.put(`http://localhost:1212/api/admin/${userToEdit._id}/edit-user`,
+          const res = await axios.put(`https://api.freelancing-project.com/api/admin/${userToEdit._id}/edit-user`,
           {
             name,email,mobile,price:Number(price),expiry:date,admin:admins,packages,paymentoptions:paymentOptions
           },
@@ -114,7 +114,7 @@ function UserForm() {
           navigate('/admin/manage-user');
         }
         else{
-          const res = await axios.post('http://localhost:1212/api/admin/create-user',
+          const res = await axios.post('https://api.freelancing-project.com/api/admin/create-user',
           {
             name,email,mobile,price:Number(price),expiry:date,admin:admins,packages,paymentoptions:paymentOptions
           },

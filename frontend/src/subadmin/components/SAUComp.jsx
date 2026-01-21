@@ -17,7 +17,7 @@ function SAUComp() {
   const getActiveUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:1212/api/sub-admin/active-users",
+        "https://api.freelancing-project.com/api/sub-admin/active-users",
         {
           headers: {
             Authorization: `Bearer ${token}`,

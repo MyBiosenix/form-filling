@@ -11,7 +11,7 @@ function MpComp() {
   const token = localStorage.getItem('token');
   const getPackages = async() => {
     try{
-      const res = await axios.get('http://localhost:1212/api/admin/get-packages',{
+      const res = await axios.get('https://api.freelancing-project.com/api/admin/get-packages',{
         headers:{
           Authorization: `Bearer ${token}`
         }
@@ -31,7 +31,7 @@ function MpComp() {
   const handleDelete = async(id) => {
     if(!window.confirm('Are you sure to delete this package?')) return;
     try{
-      const res = await axios.delete(`http://localhost:1212/api/admin/${id}/delete-package`,
+      const res = await axios.delete(`https://api.freelancing-project.com/api/admin/${id}/delete-package`,
         {
           headers:{
             Authorization: `Bearer ${token}`
