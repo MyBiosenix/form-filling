@@ -32,7 +32,7 @@ module.exports = async (req, res, next) => {
 
     if (!user.lastLoginSession || user.lastLoginSession !== token) {
       return res.status(403).json({
-        message: "Logged out: you logged in on another device."
+        message: "you logged in on another device.Please Logout and then Login again to Continue here."
       });
     }
 

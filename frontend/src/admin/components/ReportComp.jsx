@@ -88,13 +88,18 @@ function ReportComp() {
     loadExcel();
   }, []);
 
+  // ✅ keep headerss same as excel headers (stable even if user inputs shuffled)
+  useEffect(() => {
+    if (headers.length) setHeaderss(headers);
+  }, [headers]);
+
   // Fetch user's submitted entries (admin side)
   useEffect(() => {
     const fetchEntries = async () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `https://api.freelancing-projects.com/api/admin/${userId}/get-reports`,
+          `http://localhost:1212/api/admin/${userId}/get-reports`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -102,7 +107,6 @@ function ReportComp() {
         list.sort((a, b) => a.formNo - b.formNo);
 
         setEntries(list);
-        setHeaderss(list.length ? Object.keys(list[0].responses || {}) : []);
       } catch (err) {
         console.log(err);
         alert("Failed to load responses");
@@ -118,7 +122,7 @@ function ReportComp() {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
-        `https://api.freelancing-projects.com/api/admin/${userId}/get-finalreports`,
+        `http://localhost:1212/api/admin/${userId}/get-finalreports`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -153,7 +157,7 @@ function ReportComp() {
       };
 
       const res = await axios.post(
-        `https://api.freelancing-projects.com/api/admin/${userId}/save-reports`,
+        `http://localhost:1212/api/admin/${userId}/save-reports`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -185,6 +189,7 @@ function ReportComp() {
     return shuffled;
   }, [data, userId, limit]);
 
+  // Excel header normalization map
   const excelHeaderMap = useMemo(() => {
     const map = {};
     const first = data?.[0] || {};
@@ -194,7 +199,7 @@ function ReportComp() {
     return map;
   }, [data]);
 
-  // ✅ excelRowId mapping matches the limited displayData
+  // excelRowId mapping matches the limited displayData
   const excelByRowId = useMemo(() => {
     const map = {};
     for (let i = 0; i < displayData.length; i++) {
@@ -203,10 +208,17 @@ function ReportComp() {
     return map;
   }, [displayData]);
 
+  // ✅ FIXED comparison: user responses matched by normalized key (not strict key string)
   const comparisonRows = useMemo(() => {
     return entries.map((entry) => {
       const rowId = Number(entry.excelRowId);
       const excelRow = Number.isFinite(rowId) ? excelByRowId[rowId] : null;
+
+      // ✅ normalized user response keys map
+      const userResponseMap = {};
+      Object.entries(entry.responses || {}).forEach(([k, v]) => {
+        userResponseMap[normKey(k)] = v;
+      });
 
       let totalFields = 0;
       let mistakes = 0;
@@ -218,7 +230,7 @@ function ReportComp() {
         const realExcelKey = excelHeaderMap[normKey(h)] || h;
 
         const excelVal = excelRow ? excelRow[realExcelKey] : "";
-        const userVal = entry.responses?.[h] ?? "";
+        const userVal = userResponseMap[normKey(h)] ?? "";
 
         const result = compareCell(excelVal, userVal);
         perField[h] = { excelVal, userVal, ...result };
@@ -261,8 +273,13 @@ function ReportComp() {
             <h2>Excel Data</h2>
 
             <p style={{ marginTop: -8, color: "#6b7280", fontSize: 13 }}>
-              User: <b>{user?.name || "-"}</b> • Package: <b>{packageName || "-"}</b>{" "}
-              {limit ? <>• Showing <b>{limit}</b> rows</> : null}
+              User: <b>{user?.name || "-"}</b> • Package:{" "}
+              <b>{packageName || "-"}</b>{" "}
+              {limit ? (
+                <>
+                  • Showing <b>{limit}</b> rows
+                </>
+              ) : null}
             </p>
 
             <ExcelTable data={displayData} headers={headers} />

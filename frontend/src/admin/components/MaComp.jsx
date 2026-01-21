@@ -12,7 +12,7 @@ function MaComp() {
 
   const getAdmins = async() => {
     try{
-      const res = await axios.get('https://api.freelancing-projects.com/api/admin/get-admin',{
+      const res = await axios.get('http://localhost:1212/api/admin/get-admin',{
         headers:{
           Authorization:`Bearer ${token}`
         }
@@ -32,7 +32,7 @@ function MaComp() {
   const handleDelete = async(id) => {
     try{
       if(!window.confirm('Are You Sure To Delete this Admin?')) return;
-      const res = await axios.delete(`https://api.freelancing-projects.com/api/admin/${id}/delete-admin`,{
+      const res = await axios.delete(`http://localhost:1212/api/admin/${id}/delete-admin`,{
           headers:{
             Authorization: `Bearer ${token}`
           }

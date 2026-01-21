@@ -70,8 +70,6 @@ exports.logout = async (req, res) => {
   }
 };
 
-
-
 exports.getNextFormNo = async (req, res) => {
   try {
     const last = await FormEntry.findOne({ userId: req.userId })
@@ -87,8 +85,6 @@ exports.getNextFormNo = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-
-
 
 exports.saveResponses = async (req, res) => {
   try {

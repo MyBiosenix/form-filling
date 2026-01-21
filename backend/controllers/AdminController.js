@@ -113,14 +113,14 @@ exports.deleteAdmin = async(req,res) => {
 
 exports.createPackage = async(req,res) => {
     try{
-        const {name,price} = req.body;
+        const {name,price,forms} = req.body;
         const existingpackage = await Packagee.findOne({name});
         if(existingpackage){
             return res.status(400).json({message:'Package Already Exists'});
         }
 
         const newPackage = await Packagee.create({
-            name,price
+            name,price,forms
         });
         res.status(200).json({message:'Package Created Succesfully'});
     }
@@ -142,7 +142,7 @@ exports.getPackages = async(req,res) => {
 exports.editPackage = async(req,res) => {
     try{
         const {id} = req.params;
-        const {name,price} = req.body;
+        const {name,price,forms} = req.body;
 
         const packagee = await Packagee.findById(id);
         if(!packagee){
@@ -150,6 +150,8 @@ exports.editPackage = async(req,res) => {
         } 
         packagee.name = name;
         packagee.price = price;
+        packagee.forms = forms;
+        await packagee.save();
         res.status(200).json({message:'Package Succesfully Updated'});
     }
     catch(err){
@@ -450,5 +452,40 @@ exports.updateReportCount = async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.addToDraft = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await User.findByIdAndUpdate(id, { isDraft: true });
+    res.json({ message: "User moved to drafts" });
+  } catch (err) {
+    res.status(500).json({ message: "Error moving user to drafts" });
+  }
+};
+
+exports.removeFromDraft = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await User.findByIdAndUpdate(id, { isDraft: false });
+    res.json({ message: "User removed from drafts" });
+  } catch (err) {
+    res.status(500).json({ message: "Error removing user from drafts" });
+  }
+};
+
+exports.getDraftUsers = async (req, res) => {
+  try {
+    const drafts = await User.find({ isDraft: true })
+      .populate("packages", "name")
+      .populate("admin", "name")
+      .sort({ createdAt: -1 });
+
+    res.json(drafts);
+  } catch (err) {
+    res.status(500).json({ message: "Error getting draft users" });
   }
 };

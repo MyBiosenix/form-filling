@@ -9,7 +9,18 @@ function Dashboard() {
     const [ packageName, setPackageName ] = useState('');
     const [ goal, setGoal ] = useState(0);
     const [ goalStatus, setGoalStatus ] = useState(0);
-
+    const [myUser, setMyUser] = useState([]);
+    
+        useEffect(()=>{
+            const users = localStorage.getItem('user');
+            if(users){
+                const parsedUser = JSON.parse(users);
+                setMyUser(parsedUser);
+            }
+        },[])
+        if(!myUser) {
+            return <p>Loading Profile...</p>
+        }
     const token = localStorage.getItem('token')
     const id = localStorage.getItem('userId');
 
@@ -17,7 +28,7 @@ function Dashboard() {
 
     const getStats = async() => {
         try{
-            const res = await axios.get(`https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,{
+            const res = await axios.get(`http://localhost:1212/api/user/${id}/get-dashstats`,{
                 headers:{
                     Authorization: `Bearer ${token}`
                 }
@@ -82,6 +93,11 @@ function Dashboard() {
                 </div>
             </div>
         </div>
+        <p style={{textAlign:'center'}}><strong>Subscription Validity:</strong>{myUser.expiry ? 
+                    new Date(myUser.expiry).toLocaleDateString()
+                    : '-'
+                  }
+            </p>
     </div>
   )
 }

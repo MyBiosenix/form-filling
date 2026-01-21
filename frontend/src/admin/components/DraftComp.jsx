@@ -1,10 +1,10 @@
-// MuComp.jsx
+// DraftsComp.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import "../styles/ma.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-function MuComp() {
+function DraftsComp() {
   const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
@@ -14,16 +14,15 @@ function MuComp() {
   const itemsPerPage = 10;
   const token = localStorage.getItem("token");
 
-  const getUsers = async () => {
+  const getDraftUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:1212/api/admin/get-users", {
+      const res = await axios.get("http://localhost:1212/api/admin/get-drafts", {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       if (err.response?.data?.message) alert(err.response.data.message);
-      else alert("Error Getting Users");
+      else alert("Error Getting Draft Users");
     }
   };
 
@@ -34,7 +33,7 @@ function MuComp() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      getUsers();
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -47,7 +46,7 @@ function MuComp() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      getUsers();
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -56,29 +55,17 @@ function MuComp() {
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Are you sure to delete this user?")) return;
     try {
-      await axios.delete(`http://localhost:1212/api/admin/${id}/delete-user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleAddToDraft = async (id) => {
-    try {
-      await axios.put(
-        `http://localhost:1212/api/admin/${id}/add-to-draft`,
-        {},
+      await axios.delete(
+        `http://localhost:1212/api/admin/${id}/delete-user`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      getUsers();
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
   };
 
-  // ✅ OPTIONAL: if you want "In Draft" button to REMOVE from draft (toggle)
+
   const handleRemoveFromDraft = async (id) => {
     try {
       await axios.put(
@@ -86,17 +73,18 @@ function MuComp() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      getUsers();
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
   };
 
   useEffect(() => {
-    getUsers();
+    getDraftUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- Helpers for search ---
   const normalize = (v) => String(v ?? "").toLowerCase().trim();
 
   const expirySearchString = (expiry) => {
@@ -105,17 +93,19 @@ function MuComp() {
     if (Number.isNaN(d.getTime())) return "";
 
     const locale = d.toLocaleDateString();
-
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     const dmy = `${dd}-${mm}-${yyyy}`;
-
-    const monthName = d.toLocaleString("en-US", { month: "short", year: "numeric" });
+    const monthName = d.toLocaleString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
 
     return `${locale} ${dmy} ${monthName}`.toLowerCase();
   };
 
+  // --- Search filter ---
   const filteredUsers = useMemo(() => {
     const term = normalize(searchTerm);
     if (!term) return users;
@@ -128,21 +118,18 @@ function MuComp() {
       const status = u.status ? "active" : "inactive";
       const expiryStr = expirySearchString(u.expiry);
 
-      // ✅ include draft status in search too
-      const draftStatus = u.isDraft ? "draft" : "not draft";
-
       return (
         name.includes(term) ||
         email.includes(term) ||
         pkg.includes(term) ||
         admin.includes(term) ||
         status.includes(term) ||
-        expiryStr.includes(term) ||
-        draftStatus.includes(term)
+        expiryStr.includes(term)
       );
     });
   }, [users, searchTerm]);
 
+  // --- Pagination ---
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -155,21 +142,15 @@ function MuComp() {
 
   return (
     <div className="comp">
-      <h3>Manage Users</h3>
+      <h3>Draft Users</h3>
 
       <div className="incomp">
         <div className="go">
-          <h4>All Users List</h4>
+          <h4>Draft Users List</h4>
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="type" onClick={() => navigate("/admin/manage-user/add-user")}>
-              + Add User
-            </button>
-
-            <button className="type" onClick={() => navigate("/admin/drafts")}>
-              Drafts
-            </button>
-          </div>
+          <button className="type" onClick={() => navigate("/admin/manage-user")}>
+            ← Back
+          </button>
         </div>
 
         <div className="go">
@@ -218,14 +199,20 @@ function MuComp() {
 
                   <td className="mytd">
                     {user.status ? (
-                      <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
+                      <span style={{ color: "green", fontWeight: "bold" }}>
+                        Active
+                      </span>
                     ) : (
-                      <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
+                      <span style={{ color: "red", fontWeight: "bold" }}>
+                        InActive
+                      </span>
                     )}
                   </td>
 
                   <td className="mytd">
-                    {user.expiry ? new Date(user.expiry).toLocaleDateString() : "-"}
+                    {user.expiry
+                      ? new Date(user.expiry).toLocaleDateString()
+                      : "-"}
                   </td>
 
                   <td className="mybtnnns">
@@ -240,30 +227,37 @@ function MuComp() {
                       Edit
                     </button>
 
-                    <button className="delete" onClick={() => handleDeleteUser(user._id)}>
+                    <button
+                      className="delete"
+                      onClick={() => handleDeleteUser(user._id)}
+                    >
                       Delete
                     </button>
 
                     {user.status ? (
-                      <button className="inactive" onClick={() => handleDeactivateUser(user._id)}>
+                      <button
+                        className="inactive"
+                        onClick={() => handleDeactivateUser(user._id)}
+                      >
                         Deactivate
                       </button>
                     ) : (
-                      <button className="active" onClick={() => handleAcivateUser(user._id)}>
+                      <button
+                        className="active"
+                        onClick={() => handleAcivateUser(user._id)}
+                      >
                         Activate
                       </button>
                     )}
 
-                    {user.isDraft ? (
-                      <button className="inactive" disabled title="This user is already in Drafts">
-                        In Draft
-                      </button>
-
-                    ) : (
-                      <button className="active" onClick={() => handleAddToDraft(user._id)}>
-                        Add to Draft
-                      </button>
-                    )}
+                    {/* ✅ Remove Draft */}
+                    <button
+                      className="draft"
+                      onClick={() => handleRemoveFromDraft(user._id)}
+                      title="Move this user back to Manage Users"
+                    >
+                      Remove Draft
+                    </button>
 
                     <button
                       className="report"
@@ -281,7 +275,7 @@ function MuComp() {
             ) : (
               <tr>
                 <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
-                  No users found
+                  No draft users found
                 </td>
               </tr>
             )}
@@ -294,16 +288,25 @@ function MuComp() {
               <button onClick={() => goToPage(1)} disabled={currentPage === 1}>
                 «
               </button>
-              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
                 ‹
               </button>
               <span>
                 Page {currentPage} of {totalPages}
               </span>
-              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
                 ›
               </button>
-              <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages}>
+              <button
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
                 »
               </button>
             </div>
@@ -314,4 +317,4 @@ function MuComp() {
   );
 }
 
-export default MuComp;
+export default DraftsComp;

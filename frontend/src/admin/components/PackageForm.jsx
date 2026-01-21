@@ -15,6 +15,9 @@ function PackageForm() {
   const [price, setPrice] = useState("");
   const [priceError, setPriceError] = useState('');
 
+  const [forms, setForms] = useState("");
+  const [formsError, setFormsError] = useState("");
+
   const packageToEdit = location.state?.packageToEdit || '';
 
   const handlePackage = async() => {
@@ -23,6 +26,7 @@ function PackageForm() {
 
     setNameError('');
     setPriceError('');
+    setFormsError('');
 
     let valid = true;
 
@@ -38,15 +42,19 @@ function PackageForm() {
 
     if(price.length<2){
       setPriceError('Price Should be more that 2 digit numbers');
-      valid = false
+      valid = false;
+    }
+    if(forms.length<2){
+      setFormsError('Forms Should be more than 2 digit numbers');
+      valid = false;
     }
 
     if(valid){
       try{
         if(packageToEdit){
-          const res = await axios.post(`https://api.freelancing-projects.com/api/admin/${packageToEdit._id}/edit-package`,
+          const res = await axios.put(`http://localhost:1212/api/admin/${packageToEdit._id}/edit-package`,
             {
-              name,price
+              name,price,forms
             },
             {
               headers:{
@@ -58,9 +66,9 @@ function PackageForm() {
           navigate('/admin/manage-package');
         }
         else{
-          const res = await axios.post('https://api.freelancing-projects.com/api/admin/create-package',
+          const res = await axios.post('http://localhost:1212/api/admin/create-package',
             {
-              name,price
+              name,price,forms
             },
             {
               headers:{
@@ -87,6 +95,7 @@ function PackageForm() {
     if(packageToEdit){
       setName(packageToEdit.name||'');
       setPrice(packageToEdit.price||'');
+      setForms(packageToEdit.forms||'');
     }
   },[packageToEdit]);
 
@@ -102,6 +111,9 @@ function PackageForm() {
 
           <input type='number' value={price} onChange={(e) => setPrice(e.target.value)} placeholder='Enter Package Price' required/>
           {priceError ? <p style={{color:'red'}}>{priceError}</p>:''}
+
+          <input type='number' value={forms} onChange={(e) => setForms(e.target.value)} placeholder='Enter Number of Forms' required/>
+          {priceError ? <p style={{color:'red'}}>{formsError}</p>:''}
         </div>
         <div className='btnnns'>
           <button className='cancel' onClick={()=>navigate('/admin/manage-package')}>Cancel</button>

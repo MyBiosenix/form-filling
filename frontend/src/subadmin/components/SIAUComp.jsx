@@ -1,5 +1,6 @@
+
 import React, { useEffect, useMemo, useState } from "react";
-import "../styles/ma.css";
+import '../../admin/styles/ma.css';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -17,7 +18,7 @@ function DUComp() {
   const getInActiveUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:1212/api/admin/get-inactiveusers",
+        "http://localhost:1212/api/sub-admin/inactive-users",
         {
           headers: {
             Authorization: `Bearer ${token}`,

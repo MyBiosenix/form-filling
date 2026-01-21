@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import "../styles/ma.css";
+import '../../admin/styles/ma.css';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-function DUComp() {
+function SAUComp() {
   const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
@@ -14,10 +14,10 @@ function DUComp() {
 
   const token = localStorage.getItem("token");
 
-  const getInActiveUsers = async () => {
+  const getActiveUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:1212/api/admin/get-inactiveusers",
+        "http://localhost:1212/api/sub-admin/active-users",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -27,12 +27,12 @@ function DUComp() {
       setUsers(res.data);
     } catch (err) {
       if (err.response?.data?.message) alert(err.response.data.message);
-      else alert("Error getting Inactive Users");
+      else alert("Error Getting Active Users");
     }
   };
 
   useEffect(() => {
-    getInActiveUsers();
+    getActiveUsers();
   }, []);
 
   // --- Search filter ---
@@ -65,11 +65,11 @@ function DUComp() {
 
   return (
     <div className="comp">
-      <h3>Deactivated Users</h3>
+      <h3>Active Users</h3>
 
       <div className="incomp">
         <div className="go">
-          <h4>Deactivated Users List</h4>
+          <h4>Active Users List</h4>
         </div>
 
         <div className="go">
@@ -85,7 +85,7 @@ function DUComp() {
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
-              setCurrentPage(1); // ✅ reset page after search
+              setCurrentPage(1);
             }}
           />
         </div>
@@ -115,7 +115,7 @@ function DUComp() {
                       </span>
                     ) : (
                       <span style={{ color: "red", fontWeight: "bold" }}>
-                        Inactive
+                        InActive
                       </span>
                     )}
                   </td>
@@ -131,7 +131,6 @@ function DUComp() {
           </tbody>
         </table>
 
-        {/* ✅ Pagination UI */}
         {filteredUsers.length > 0 && (
           <div className="pagination-container">
             <div className="pagination">
@@ -167,4 +166,4 @@ function DUComp() {
   );
 }
 
-export default DUComp;
+export default SAUComp;

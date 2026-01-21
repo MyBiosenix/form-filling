@@ -30,6 +30,27 @@ function shuffleWithSeed(arr, seed) {
   return a;
 }
 
+/** ✅ Captcha helpers */
+function makeCaptcha(len = 5) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // removed O/0/I/1
+  let out = "";
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+function normCaptcha(v) {
+  return String(v || "").trim().toUpperCase();
+}
+
+/** ✅ Random shuffle for input fields (changes per form) */
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function WorkComp() {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -39,8 +60,20 @@ function WorkComp() {
 
   const [goal, setGoal] = useState(0);
   const [goalStatus, setGoalStatus] = useState(0);
-
   const [formNo, setFormNo] = useState(1);
+
+  /** ✅ Captcha state */
+  const [captchaText, setCaptchaText] = useState(() => makeCaptcha(5));
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [captchaError, setCaptchaError] = useState("");
+  const refreshCaptcha = useCallback(() => {
+    setCaptchaText(makeCaptcha(5));
+    setCaptchaInput("");
+    setCaptchaError("");
+  }, []);
+
+  /** ✅ Shuffled input order state (changes every form) */
+  const [shuffledHeaders, setShuffledHeaders] = useState([]);
 
   useEffect(() => {
     const ensureUserId = async () => {
@@ -54,7 +87,7 @@ function WorkComp() {
       }
 
       try {
-        const res = await axios.get("https://api.freelancing-projects.com/api/user/me", {
+        const res = await axios.get("http://localhost:1212/api/user/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -81,7 +114,7 @@ function WorkComp() {
         if (!token || !id) return;
 
         const res = await axios.get(
-          `https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,
+          `http://localhost:1212/api/user/${id}/get-dashstats`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -90,7 +123,6 @@ function WorkComp() {
 
         setGoal(g);
         setGoalStatus(done);
-
         setFormNo(done + 1);
       } catch (err) {
         console.log(err);
@@ -128,6 +160,7 @@ function WorkComp() {
     loadExcel();
   }, []);
 
+  /** ✅ Keep your existing excel row shuffle (per user) */
   const shuffledData = useMemo(() => {
     if (!data.length) return [];
     const userId = localStorage.getItem("userId");
@@ -138,9 +171,7 @@ function WorkComp() {
   const displayData = useMemo(() => {
     if (!shuffledData.length) return [];
     const g = Number(goal) || 0;
-
     if (!g) return [];
-
     return shuffledData.slice(0, g);
   }, [shuffledData, goal]);
 
@@ -149,6 +180,12 @@ function WorkComp() {
     return displayData[formNo - 1] || null;
   }, [displayData, formNo]);
 
+  /** ✅ Shuffle INPUT FIELDS each time formNo changes (rest unchanged) */
+  useEffect(() => {
+    if (!headers.length) return;
+    setShuffledHeaders(shuffleArray(headers));
+  }, [headers, formNo]);
+
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -156,6 +193,15 @@ function WorkComp() {
 
   const handleSubmit = async () => {
     try {
+      // ✅ captcha check FIRST
+      if (normCaptcha(captchaInput) !== normCaptcha(captchaText)) {
+        setCaptchaError("Captcha is incorrect. Please try again.");
+        setCaptchaText(makeCaptcha(5));
+        setCaptchaInput("");
+        return;
+      }
+      setCaptchaError("");
+
       const token = localStorage.getItem("token");
       if (!token) {
         alert("Please login again.");
@@ -181,7 +227,7 @@ function WorkComp() {
       const excelRowId = formNo;
 
       const res = await axios.post(
-        "https://api.freelancing-projects.com/api/user/forms",
+        "http://localhost:1212/api/user/forms",
         { excelRowId, responses: formData },
         {
           headers: {
@@ -193,10 +239,16 @@ function WorkComp() {
 
       alert(`Saved Form No. ${res.data?.formNo}`);
 
+      // ✅ clear inputs (keys stay stable)
       setFormData(Object.fromEntries(headers.map((h) => [h, ""])));
 
+      // ✅ next form
       setFormNo((prev) => prev + 1);
       setGoalStatus((prev) => prev + 1);
+
+      // ✅ new captcha for next form
+      refreshCaptcha();
+      // ✅ input order will reshuffle automatically because formNo changes
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || "Error saving data");
@@ -210,8 +262,7 @@ function WorkComp() {
       <div className="tble">
         <h2>Excel Data</h2>
         <p style={{ marginTop: -8, color: "#6b7280", fontSize: 13 }}>
-          Showing {displayData.length} /{" "}
-          {goal || 0}
+          Showing {displayData.length} / {goal || 0}
         </p>
 
         <ExcelTable data={displayData} headers={headers} />
@@ -248,7 +299,8 @@ function WorkComp() {
           </div>
         ) : (
           <div className="form-grid">
-            {headers.map((h) => (
+            {/* ✅ SHUFFLED INPUTS ONLY */}
+            {shuffledHeaders.map((h) => (
               <div className="form-group" key={h}>
                 <label>{h}</label>
                 <input
@@ -261,7 +313,104 @@ function WorkComp() {
               </div>
             ))}
 
-            <button className="frmbtn" onClick={handleSubmit} disabled={!goal || goalCompleted}>
+            {/* ✅ Captcha UI at end of form */}
+            <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+              <label>Captcha</label>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    position: "relative",
+                    padding: "14px 18px",
+                    borderRadius: 8,
+                    border: "1px solid #c7c7c7",
+                    background: "linear-gradient(135deg, #f3f4f6, #e5e7eb)",
+                    fontWeight: 800,
+                    letterSpacing: 4,
+                    userSelect: "none",
+                    fontSize: 20,
+                    display: "flex",
+                    gap: 4,
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Noise line */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "-10%",
+                      width: "120%",
+                      height: 2,
+                      background: "rgba(0,0,0,0.25)",
+                      transform: "rotate(-8deg)",
+                    }}
+                  />
+
+                  {captchaText.split("").map((ch, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        transform: `rotate(${(Math.random() * 20 - 10).toFixed(1)}deg)`,
+                        color: "#111827",
+                      }}
+                    >
+                      {ch}
+                    </span>
+                  ))}
+                </div>
+
+
+                <button
+                  type="button"
+                  onClick={refreshCaptcha}
+                  title="Refresh Captcha"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #d1d5db",
+                    background: "white",
+                    color:'black',
+                    cursor: "pointer",
+                    fontSize: 18,
+                    fontWeight: 700,
+                  }}
+                >
+                  ↻
+                </button>
+
+
+                <input
+                  type="text"
+                  value={captchaInput}
+                  onChange={(e) => {
+                    setCaptchaInput(e.target.value);
+                    setCaptchaError("");
+                  }}
+                  placeholder="Enter captcha"
+                  style={{ flex: 1, minWidth: 180 }}
+                />
+              </div>
+
+              {captchaError ? (
+                <div style={{ color: "red", marginTop: 6, fontWeight: 600 }}>
+                  {captchaError}
+                </div>
+              ) : null}
+            </div>
+
+            <button
+              className="frmbtn"
+              onClick={handleSubmit}
+              disabled={!goal || goalCompleted}
+            >
               Submit (Form {formNo})
             </button>
           </div>

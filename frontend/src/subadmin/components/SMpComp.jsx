@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import '../styles/ma.css';
+import '../../admin/styles/ma.css';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'
+import axios from 'axios';
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-
-function MpComp() {
-  const navigate = useNavigate();
+function SMpComp() {
   const [packages, setPackages] = useState([]);
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const token = localStorage.getItem('token');
+  const admin = JSON.parse(localStorage.getItem('admin'));
+  const role = admin?.role;
+
   const getPackages = async() => {
     try{
       const res = await axios.get('http://localhost:1212/api/admin/get-packages',{
@@ -27,42 +33,57 @@ function MpComp() {
       }
     }
   }
+  const filteredPackages = packages.filter((p) =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const handleDelete = async(id) => {
-    if(!window.confirm('Are you sure to delete this package?')) return;
-    try{
-      const res = await axios.delete(`http://localhost:1212/api/admin/${id}/delete-package`,
-        {
-          headers:{
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
-      getPackages();
-    }
-    catch(err){
-      alert(err.message);
-    }
-  }
-
-
-  useEffect(()=>{
+  useEffect(() => {
     getPackages();
-  },[])
+  }, []);
+
+  
+
+  const exportToExcel = () => {
+    const data = filteredPackages.map((p, i) => ({
+      "Sr No.": i + 1,
+      "Package Name": p.name,
+      "Price (Per Paragraph)": p.price,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Packages");
+    XLSX.writeFile(workbook, "PackagesList.xlsx");
+  };
+
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Packages List", 14, 15);
+
+    const tableColumn = ["Sr No.", "Package Name", "Price (Per Paragraph)"];
+    const tableRows = filteredPackages.map((p, i) => [
+      i + 1,
+      p.name,
+      p.price,
+      p.forms
+    ]);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+
+    doc.save("PackagesList.pdf");
+  };
 
   return (
     <div className='comp'>
       <h3>Manage Packages</h3>
       <div className='incomp'>
-        <div className='go'>
-          <h4>All Package List</h4>
-          <button
-            className='type'
-            onClick={() => navigate('/admin/manage-package/add-package')}
-          >
-            + Add Package
-          </button>
-        </div>
         <div className='go'>
           <div className='mygo'>
             <p style={{ cursor: 'pointer' }}>Excel</p>
@@ -83,7 +104,6 @@ function MpComp() {
               <th className='myth'>Name</th>
               <th className='myth'>Price</th>
               <th className='myth'>No. of Forms</th>
-              <th className='myth'>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -93,10 +113,7 @@ function MpComp() {
                 <td className='mytd'>{pack.name}</td>
                 <td className='mytd'>{pack.price}</td>
                 <td className='mytd'>{pack.forms}</td>
-                <td className='mybtnnns'>
-                  <button className='edit' onClick={()=>navigate('/admin/manage-package/add-package',{state:{packageToEdit:pack}})}>Edit</button>
-                  <button className='delete' onClick={()=>handleDelete(pack._id)}>Delete</button>
-                </td>
+
               </tr> 
             ))}
 
@@ -107,4 +124,4 @@ function MpComp() {
   );
 }
 
-export default MpComp;
+export default SMpComp;

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount } = require('../controllers/AdminController');
+const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers } = require('../controllers/AdminController');
 
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -36,7 +36,13 @@ router.get('/:userId/get-savedreports',authMiddleware,getSavedReports);
 
 router.get('/:userId/get-finalreports',authMiddleware,getFinalReports);
 
-router.put('/:userId/update-count',authMiddleware,updateReportCount)
+router.put('/:userId/update-count',authMiddleware,updateReportCount);
+
+router.put('/:id/add-to-draft',authMiddleware,addToDraft);
+
+router.put('/:id/remove-from-draft',authMiddleware,removeFromDraft);
+
+router.get('/get-drafts',authMiddleware,getDraftUsers);
 
 
 module.exports = router;

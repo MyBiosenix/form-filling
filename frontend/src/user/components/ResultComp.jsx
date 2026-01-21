@@ -30,7 +30,6 @@ function shuffleWithSeed(arr, seed) {
   return a;
 }
 
-/** ------------------ MyResponses ------------------ */
 function MyResponses({ title = "My Responses", goal = 0 }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,14 +38,13 @@ function MyResponses({ title = "My Responses", goal = 0 }) {
     const fetchEntries = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("https://api.freelancing-projects.com/api/user/entries", {
+        const res = await axios.get("http://localhost:1212/api/user/entries", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         let data = Array.isArray(res.data) ? res.data : [];
         data.sort((a, b) => a.formNo - b.formNo);
 
-        // ✅ limit to goal (so table matches excel assigned rows)
         if (Number(goal) > 0) data = data.slice(0, Number(goal));
 
         setEntries(data);
@@ -107,7 +105,6 @@ function MyResponses({ title = "My Responses", goal = 0 }) {
   );
 }
 
-/** ------------------ FinalReports ------------------ */
 function FinalReports({ title = "Your Report" }) {
   const [finalReports, setFinalReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +114,7 @@ function FinalReports({ title = "Your Report" }) {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
-        "https://api.freelancing-projects.com/api/user/finalreports",
+        "http://localhost:1212/api/user/finalreports",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -226,7 +223,7 @@ export default function ResultComp() {
         if (!token || !userId) return;
 
         const res = await axios.get(
-          `https://api.freelancing-projects.com/api/user/${userId}/get-dashstats`,
+          `http://localhost:1212/api/user/${userId}/get-dashstats`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

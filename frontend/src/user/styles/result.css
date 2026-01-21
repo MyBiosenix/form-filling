@@ -88,7 +88,7 @@ body {
   height: 600px;
   border: 1px solid #e6eaf0;
   scrollbar-width: thin;
-  scrollbar-color: green white;
+  scrollbar-color: #053286 white;
   min-height: 0;
 }
 
@@ -98,8 +98,8 @@ body {
   border-collapse: collapse;
 }
 
-th {
-  background: #0b7a39;
+.rc-table th {
+  background: #053286 ;
   color: #fff;
   font-weight: 700;
   position: sticky;

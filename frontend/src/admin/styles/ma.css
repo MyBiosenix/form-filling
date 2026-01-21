@@ -169,3 +169,9 @@ html, body {
   color: #333;
   margin: 0 6px;
 }
+.draft {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+}

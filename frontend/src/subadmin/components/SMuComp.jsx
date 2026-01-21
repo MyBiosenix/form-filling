@@ -1,10 +1,10 @@
-// MuComp.jsx
+
 import React, { useEffect, useMemo, useState } from "react";
-import "../styles/ma.css";
+import '../../admin/styles/ma.css';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-function MuComp() {
+function SMuComp() {
   const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
@@ -16,7 +16,7 @@ function MuComp() {
 
   const getUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:1212/api/admin/get-users", {
+      const res = await axios.get("http://localhost:1212/api/sub-admin/getusers", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -53,48 +53,9 @@ function MuComp() {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure to delete this user?")) return;
-    try {
-      await axios.delete(`http://localhost:1212/api/admin/${id}/delete-user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleAddToDraft = async (id) => {
-    try {
-      await axios.put(
-        `http://localhost:1212/api/admin/${id}/add-to-draft`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  // ✅ OPTIONAL: if you want "In Draft" button to REMOVE from draft (toggle)
-  const handleRemoveFromDraft = async (id) => {
-    try {
-      await axios.put(
-        `http://localhost:1212/api/admin/${id}/remove-from-draft`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
 
   useEffect(() => {
     getUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const normalize = (v) => String(v ?? "").toLowerCase().trim();
@@ -160,16 +121,6 @@ function MuComp() {
       <div className="incomp">
         <div className="go">
           <h4>All Users List</h4>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="type" onClick={() => navigate("/admin/manage-user/add-user")}>
-              + Add User
-            </button>
-
-            <button className="type" onClick={() => navigate("/admin/drafts")}>
-              Drafts
-            </button>
-          </div>
         </div>
 
         <div className="go">
@@ -196,7 +147,6 @@ function MuComp() {
               <th className="myth">Sr.No.</th>
               <th className="myth">Name</th>
               <th className="myth">Package</th>
-              <th className="myth">Admin</th>
               <th className="myth">Email Id</th>
               <th className="myth">Password</th>
               <th className="myth">Status</th>
@@ -212,7 +162,6 @@ function MuComp() {
                   <td className="mytd">{indexOfFirstItem + index + 1}</td>
                   <td className="mytd">{user.name}</td>
                   <td className="mytd">{user.packages?.name || "No Package"}</td>
-                  <td className="mytd">{user.admin?.name || "-"}</td>
                   <td className="mytd">{user.email}</td>
                   <td className="mytd">{user.password}</td>
 
@@ -229,20 +178,9 @@ function MuComp() {
                   </td>
 
                   <td className="mybtnnns">
-                    <button
-                      className="edit"
-                      onClick={() =>
-                        navigate("/admin/manage-user/add-user", {
-                          state: { userToEdit: user },
-                        })
-                      }
-                    >
-                      Edit
-                    </button>
+                    
 
-                    <button className="delete" onClick={() => handleDeleteUser(user._id)}>
-                      Delete
-                    </button>
+                    
 
                     {user.status ? (
                       <button className="inactive" onClick={() => handleDeactivateUser(user._id)}>
@@ -254,27 +192,9 @@ function MuComp() {
                       </button>
                     )}
 
-                    {user.isDraft ? (
-                      <button className="inactive" disabled title="This user is already in Drafts">
-                        In Draft
-                      </button>
+                    
 
-                    ) : (
-                      <button className="active" onClick={() => handleAddToDraft(user._id)}>
-                        Add to Draft
-                      </button>
-                    )}
-
-                    <button
-                      className="report"
-                      onClick={() =>
-                        navigate("/admin/manage-user/report", {
-                          state: { user: user },
-                        })
-                      }
-                    >
-                      Report
-                    </button>
+                    
                   </td>
                 </tr>
               ))
@@ -314,4 +234,4 @@ function MuComp() {
   );
 }
 
-export default MuComp;
+export default SMuComp;
