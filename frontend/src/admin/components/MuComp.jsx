@@ -16,7 +16,7 @@ function MuComp() {
 
   const getUsers = async () => {
     try {
-      const res = await axios.get("https://api.freelancing-project.com/api/admin/get-users", {
+      const res = await axios.get("https://api.freelancing-projects.com/api/admin/get-users", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -30,7 +30,7 @@ function MuComp() {
   const handleAcivateUser = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-project.com/api/admin/${id}/activate-user`,
+        `https://api.freelancing-projects.com/api/admin/${id}/activate-user`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -43,7 +43,7 @@ function MuComp() {
   const handleDeactivateUser = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-project.com/api/admin/${id}/deactivate-user`,
+        `https://api.freelancing-projects.com/api/admin/${id}/deactivate-user`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -56,7 +56,7 @@ function MuComp() {
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Are you sure to delete this user?")) return;
     try {
-      await axios.delete(`https://api.freelancing-project.com/api/admin/${id}/delete-user`, {
+      await axios.delete(`https://api.freelancing-projects.com/api/admin/${id}/delete-user`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       getUsers();
@@ -68,7 +68,7 @@ function MuComp() {
   const handleAddToDraft = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-project.com/api/admin/${id}/add-to-draft`,
+        `https://api.freelancing-projects.com/api/admin/${id}/add-to-draft`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -82,7 +82,7 @@ function MuComp() {
   const handleRemoveFromDraft = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-project.com/api/admin/${id}/remove-from-draft`,
+        `https://api.freelancing-projects.com/api/admin/${id}/remove-from-draft`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

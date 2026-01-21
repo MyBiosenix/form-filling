@@ -33,7 +33,7 @@ function SLogin() {
 
       if(valid){
         try{
-          const res = await axios.post('https://api.freelancing-project.com/api/sub-admin/login',{
+          const res = await axios.post('https://api.freelancing-projects.com/api/sub-admin/login',{
             email,password
           });
           alert('Login Succesful');

@@ -10,7 +10,7 @@ function MyResponses({ title = "My Responses" }) {
       try {
         const token = localStorage.getItem("token");
 
-        const res = await axios.get("https://api.freelancing-project.com/api/user/entries", {
+        const res = await axios.get("https://api.freelancing-projects.com/api/user/entries", {
           headers: { Authorization: `Bearer ${token}` },
         });
 

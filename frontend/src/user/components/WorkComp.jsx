@@ -87,7 +87,7 @@ function WorkComp() {
       }
 
       try {
-        const res = await axios.get("https://api.freelancing-project.com/api/user/me", {
+        const res = await axios.get("https://api.freelancing-projects.com/api/user/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -114,7 +114,7 @@ function WorkComp() {
         if (!token || !id) return;
 
         const res = await axios.get(
-          `https://api.freelancing-project.com/api/user/${id}/get-dashstats`,
+          `https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -227,7 +227,7 @@ function WorkComp() {
       const excelRowId = formNo;
 
       const res = await axios.post(
-        "https://api.freelancing-project.com/api/user/forms",
+        "https://api.freelancing-projects.com/api/user/forms",
         { excelRowId, responses: formData },
         {
           headers: {
