@@ -1,6 +1,6 @@
 import React from 'react'
-import Header from '../Components/Header'
-import Dashboard from '../Components/Dashboard'
+import Header from '../components/Header'
+import Dashboard from '../components/Dashboard'
 
 function SHome() {
   return (

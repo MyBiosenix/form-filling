@@ -1,7 +1,7 @@
 import React from 'react'
 import '../../admin/styles/ma.css'
-import Header from '../Components/Header'
-import SMpComp from '../Components/SMpComp'
+import Header from '../components/Header'
+import SMpComp from '../components/SMpComp'
 
 function SMP() {
   return (

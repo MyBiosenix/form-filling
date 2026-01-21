@@ -1,7 +1,7 @@
 import React from 'react'
 import '../../admin/styles/ma.css'
-import Header from '../Components/Header'
-import SAUComp from '../Components/SAUComp'
+import Header from '../components/Header'
+import SAUComp from '../components/SAUComp'
 
 function SAU() {
   return (
