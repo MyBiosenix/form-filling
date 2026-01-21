@@ -1,4 +1,4 @@
-import '../../admin/Styles/dash.css'
+import '../../admin/styles/dash.css'
 import { MdSubscriptions, MdOutlineTrackChanges } from 'react-icons/md';
 import { FaBullseye, FaChartLine } from 'react-icons/fa';
 import axios from 'axios';
