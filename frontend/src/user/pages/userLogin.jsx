@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../../admin/styles/login.css";
+import "../../admin/styles/Login.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
