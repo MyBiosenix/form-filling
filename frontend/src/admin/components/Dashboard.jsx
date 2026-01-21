@@ -1,5 +1,5 @@
 import axios from 'axios'
-import '../Styles/dash.css'
+import '../styles/dash.css'
 import { FaUserShield, FaUsers, FaUserCheck, FaUserSlash } from 'react-icons/fa'
 import { useEffect, useState } from 'react';
 
