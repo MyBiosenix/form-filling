@@ -90,32 +90,58 @@ exports.saveResponses = async (req, res) => {
   try {
     const { excelRowId, responses } = req.body;
 
-    const last = await FormEntry.findOne({ userId: req.userId })
-      .sort({ formNo: -1 })
-      .select("formNo")
+    // ✅ use your existing auth style
+    const userId = req.userId;
+
+    // 1) get user + package forms
+    const user = await User.findById(userId)
+      .populate("packages", "name forms")
       .lean();
 
-    const lastNo = Number(last?.formNo);
-    const newFormNo = Number.isFinite(lastNo) ? lastNo + 1 : 1;
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // 2) block deactivated user
+    if (user.status === false) {
+      return res.status(403).json({ message: "Your account is deactivated." });
+    }
+
+    // 3) package limit
+    const allowedForms = Number(user.packages?.forms) || 0;
+    if (!allowedForms) {
+      return res.status(400).json({ message: "No package forms limit set." });
+    }
+
+    // 4) how many already submitted
+    const totalFormsDone = await FormEntry.countDocuments({ userId });
+
+    if (totalFormsDone >= allowedForms) {
+      return res
+        .status(403)
+        .json({ message: `Goal completed. Limit is ${allowedForms} forms.` });
+    }
+
+    // 5) keep formNo consistent
+    const newFormNo = totalFormsDone + 1;
 
     const entry = new FormEntry({
-      userId: req.userId,
+      userId,
       formNo: newFormNo,
       excelRowId,
       responses,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
 
     await entry.save();
 
     return res.status(200).json({
       message: "Form Entry Saved",
-      formNo: newFormNo
+      formNo: newFormNo,
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.getMyFormEntries = async (req, res) => {
   try {
@@ -133,30 +159,27 @@ exports.getdashStats = async (req, res) => {
     const { id } = req.params;
 
     const user = await User.findById(id)
-      .populate("packages", "name")
+      .populate("packages", "name forms")
       .lean();
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const originalPackageName = user.packages?.name || "";
-    const packageKey = originalPackageName.toLowerCase();
-
-    let goal = 0;
-    if (packageKey === "gold") goal = 2000;
-    else if (packageKey === "vip") goal = 3000;
-    else if (packageKey === "diamond") goal = 3000;
+    const pkg = user.packages;
+    const packageName = pkg?.name || "";
+    const goal = Number(pkg?.forms) || 0;  
 
     const totalFormsDone = await FormEntry.countDocuments({ userId: id });
 
     return res.status(200).json({
-      packageName: originalPackageName, 
+      packageName,
       goal,
-      totalFormsDone
+      totalFormsDone,
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.ChangePassword = async(req,res) => {
   try{

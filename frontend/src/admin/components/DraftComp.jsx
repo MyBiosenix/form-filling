@@ -16,7 +16,7 @@ function DraftsComp() {
 
   const getDraftUsers = async () => {
     try {
-      const res = await axios.get("https://api.freelancing-projects.com/api/admin/get-drafts", {
+      const res = await axios.get("http://localhost:1212/api/admin/get-drafts", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(Array.isArray(res.data) ? res.data : []);
@@ -29,7 +29,7 @@ function DraftsComp() {
   const handleAcivateUser = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-projects.com/api/admin/${id}/activate-user`,
+        `http://localhost:1212/api/admin/${id}/activate-user`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -42,7 +42,7 @@ function DraftsComp() {
   const handleDeactivateUser = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-projects.com/api/admin/${id}/deactivate-user`,
+        `http://localhost:1212/api/admin/${id}/deactivate-user`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -56,7 +56,7 @@ function DraftsComp() {
     if (!window.confirm("Are you sure to delete this user?")) return;
     try {
       await axios.delete(
-        `https://api.freelancing-projects.com/api/admin/${id}/delete-user`,
+        `http://localhost:1212/api/admin/${id}/delete-user`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       getDraftUsers();
@@ -69,7 +69,7 @@ function DraftsComp() {
   const handleRemoveFromDraft = async (id) => {
     try {
       await axios.put(
-        `https://api.freelancing-projects.com/api/admin/${id}/remove-from-draft`,
+        `http://localhost:1212/api/admin/${id}/remove-from-draft`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

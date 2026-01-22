@@ -28,7 +28,7 @@ function Dashboard() {
 
     const getStats = async() => {
         try{
-            const res = await axios.get(`https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,{
+            const res = await axios.get(`http://localhost:1212/api/user/${id}/get-dashstats`,{
                 headers:{
                     Authorization: `Bearer ${token}`
                 }

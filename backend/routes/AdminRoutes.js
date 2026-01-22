@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers } = require('../controllers/AdminController');
+const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword } = require('../controllers/AdminController');
 
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/login',login);
+router.put('/:id/change-password',authMiddleware,ChangePassword);
 
 router.post('/create-admin',authMiddleware,createadmin);
 router.get('/get-admin',authMiddleware,getAdmin);
@@ -30,6 +31,7 @@ router.get('/get-activeusers',authMiddleware,getActiveUsers);
 router.get('/get-inactiveusers',authMiddleware,getInActiveUsers);
 router.get('/get-dashstats',authMiddleware,getdashStats);
 router.get('/:id/get-reports',authMiddleware,getReports);
+router.put("/form-entry/:entryId", authMiddleware,updateFormEntryResponses);
 
 router.post('/:userId/save-reports',authMiddleware,saveReport);
 router.get('/:userId/get-savedreports',authMiddleware,getSavedReports);

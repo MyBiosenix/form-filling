@@ -17,7 +17,7 @@ function SMpComp() {
 
   const getPackages = async() => {
     try{
-      const res = await axios.get('https://api.freelancing-projects.com/api/admin/get-packages',{
+      const res = await axios.get('http://localhost:1212/api/admin/get-packages',{
         headers:{
           Authorization: `Bearer ${token}`
         }

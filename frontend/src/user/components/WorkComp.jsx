@@ -30,7 +30,6 @@ function shuffleWithSeed(arr, seed) {
   return a;
 }
 
-/** ✅ Captcha helpers */
 function makeCaptcha(len = 5) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // removed O/0/I/1
   let out = "";
@@ -41,7 +40,6 @@ function normCaptcha(v) {
   return String(v || "").trim().toUpperCase();
 }
 
-/** ✅ Random shuffle for input fields (changes per form) */
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -62,7 +60,6 @@ function WorkComp() {
   const [goalStatus, setGoalStatus] = useState(0);
   const [formNo, setFormNo] = useState(1);
 
-  /** ✅ Captcha state */
   const [captchaText, setCaptchaText] = useState(() => makeCaptcha(5));
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaError, setCaptchaError] = useState("");
@@ -72,7 +69,6 @@ function WorkComp() {
     setCaptchaError("");
   }, []);
 
-  /** ✅ Shuffled input order state (changes every form) */
   const [shuffledHeaders, setShuffledHeaders] = useState([]);
 
   useEffect(() => {
@@ -87,7 +83,7 @@ function WorkComp() {
       }
 
       try {
-        const res = await axios.get("https://api.freelancing-projects.com/api/user/me", {
+        const res = await axios.get("http://localhost:1212/api/user/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -114,7 +110,7 @@ function WorkComp() {
         if (!token || !id) return;
 
         const res = await axios.get(
-          `https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,
+          `http://localhost:1212/api/user/${id}/get-dashstats`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -227,7 +223,7 @@ function WorkComp() {
       const excelRowId = formNo;
 
       const res = await axios.post(
-        "https://api.freelancing-projects.com/api/user/forms",
+        "http://localhost:1212/api/user/forms",
         { excelRowId, responses: formData },
         {
           headers: {
@@ -239,16 +235,12 @@ function WorkComp() {
 
       alert(`Saved Form No. ${res.data?.formNo}`);
 
-      // ✅ clear inputs (keys stay stable)
       setFormData(Object.fromEntries(headers.map((h) => [h, ""])));
 
-      // ✅ next form
       setFormNo((prev) => prev + 1);
       setGoalStatus((prev) => prev + 1);
 
-      // ✅ new captcha for next form
       refreshCaptcha();
-      // ✅ input order will reshuffle automatically because formNo changes
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || "Error saving data");
@@ -278,8 +270,8 @@ function WorkComp() {
           ) : null}
         </h2>
 
-        <div className="form-group">
-          <label>Excel Row ID (Auto)</label>
+        <div className="form-group" style={{ marginBottom: "16px" }}>
+          <label>Sr No. (Auto)</label>
           <input type="number" value={formNo} readOnly />
         </div>
 
@@ -299,7 +291,6 @@ function WorkComp() {
           </div>
         ) : (
           <div className="form-grid">
-            {/* ✅ SHUFFLED INPUTS ONLY */}
             {shuffledHeaders.map((h) => (
               <div className="form-group" key={h}>
                 <label>{h}</label>
@@ -313,7 +304,6 @@ function WorkComp() {
               </div>
             ))}
 
-            {/* ✅ Captcha UI at end of form */}
             <div className="form-group" style={{ gridColumn: "1 / -1" }}>
               <label>Captcha</label>
 
@@ -341,7 +331,6 @@ function WorkComp() {
                     overflow: "hidden",
                   }}
                 >
-                  {/* Noise line */}
                   <div
                     style={{
                       position: "absolute",
@@ -358,7 +347,9 @@ function WorkComp() {
                     <span
                       key={i}
                       style={{
-                        transform: `rotate(${(Math.random() * 20 - 10).toFixed(1)}deg)`,
+                        transform: `rotate(${(Math.random() * 20 - 10).toFixed(
+                          1
+                        )}deg)`,
                         color: "#111827",
                       }}
                     >
@@ -366,7 +357,6 @@ function WorkComp() {
                     </span>
                   ))}
                 </div>
-
 
                 <button
                   type="button"
@@ -377,7 +367,7 @@ function WorkComp() {
                     borderRadius: 8,
                     border: "1px solid #d1d5db",
                     background: "white",
-                    color:'black',
+                    color: "black",
                     cursor: "pointer",
                     fontSize: 18,
                     fontWeight: 700,
@@ -385,7 +375,6 @@ function WorkComp() {
                 >
                   ↻
                 </button>
-
 
                 <input
                   type="text"
@@ -415,6 +404,27 @@ function WorkComp() {
             </button>
           </div>
         )}
+
+        <div
+          style={{
+            marginTop: 18,
+            padding: "14px 10px",
+            textAlign: "center",
+            color: "#6b7280",
+            fontSize: 14,
+            borderTop: "1px solid #e5e7eb",
+            background: "#f6f2ff",
+            borderRadius: 10,
+            
+          }}
+        >
+          <div className="gf">
+            <span style={{ fontWeight:300, fontSize:25 }}>
+              <span style={{fontWeight:500}}>Google</span> Forms
+            </span>
+          </div>
+
+        </div>
       </div>
     </div>
   );

@@ -137,6 +137,12 @@ tbody tr:hover {
   box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
 }
 
+.gf{
+   font-family: "Roboto", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  
+}
+
 @media (max-width:450px){
   .wrk{
     flex-direction: column;

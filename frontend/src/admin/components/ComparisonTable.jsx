@@ -1,6 +1,13 @@
 import React from "react";
 
-export default function ComparisonTable({ comparisonRows, headerss, th, td, toStr }) {
+export default function ComparisonTable({
+  comparisonRows,
+  headerss,
+  th,
+  td,
+  toStr,
+  onEdit, // ✅ add this
+}) {
   if (!comparisonRows.length) return <p>No data found</p>;
 
   return (
@@ -12,10 +19,16 @@ export default function ComparisonTable({ comparisonRows, headerss, th, td, toSt
         maxHeight: "100%",
         flex: 1,
         scrollbarWidth: "thin",
-        scrollbarColor: "#006408 #f9f3e3"
+        scrollbarColor: "#006408 #f9f3e3",
       }}
     >
-      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1100px" }}>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          minWidth: "1100px",
+        }}
+      >
         <thead>
           <tr>
             <th style={th}>Form No</th>
@@ -29,6 +42,9 @@ export default function ComparisonTable({ comparisonRows, headerss, th, td, toSt
                 {h}
               </th>
             ))}
+
+            {/* ✅ NEW */}
+            <th style={th}>Actions</th>
           </tr>
         </thead>
 
@@ -52,11 +68,19 @@ export default function ComparisonTable({ comparisonRows, headerss, th, td, toSt
 
                 const title = r.match
                   ? "MATCH"
-                  : `MISMATCH (${r.type})\nExcel: ${toStr(r.excelVal)}\nYou: ${toStr(r.userVal)}`;
+                  : `MISMATCH (${r.type})\nExcel: ${toStr(r.excelVal)}\nYou: ${toStr(
+                      r.userVal
+                    )}`;
 
                 return (
                   <td key={h} style={{ ...td, background: bg }} title={title}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
                       <div style={{ fontSize: 12, opacity: 0.75 }}>
                         <b>Excel:</b> {toStr(r.excelVal)}
                       </div>
@@ -73,11 +97,35 @@ export default function ComparisonTable({ comparisonRows, headerss, th, td, toSt
                         </div>
                       )}
 
-                      {r.match && <div style={{ fontSize: 12, fontWeight: 700 }}>✅ match</div>}
+                      {r.match && (
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>
+                          ✅ match
+                        </div>
+                      )}
                     </div>
                   </td>
                 );
               })}
+
+              {/* ✅ NEW Actions cell */}
+              <td style={{ ...td, textAlign: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => onEdit && onEdit(row)}
+                  style={{
+                    padding: "6px 10px",
+                    border: "1px solid #ddd",
+                    background: "#111827",
+                    color: "white",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Edit
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

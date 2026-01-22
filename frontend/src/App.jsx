@@ -19,7 +19,6 @@ import AddPackage from './admin/pages/AddPackage'
 import AU from './admin/pages/AU'
 import DU from './admin/pages/DU'
 import Report from './admin/pages/Report'
-import AdminChangePass from './user/pages/ChangePass'
 import Drafts from './admin/pages/Drafts'
 
 import SLogin from './subadmin/pages/SLogin'

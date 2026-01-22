@@ -7,6 +7,7 @@ import axios from "axios";
 
 import ComparisonTable from "./ComparisonTable";
 import MistakeSummaryPanel from "./MistakeSummaryPanel";
+import EditResponsesModal from "./EditResponsesModal"; // ✅ NEW
 import { toStr, compareCell } from "./ReportUtils";
 
 function xfnv1a(str) {
@@ -44,12 +45,6 @@ const normKey = (s) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
-function getLimitFromPackage(packageName) {
-  const p = String(packageName || "").trim().toLowerCase();
-  if (p === "gold") return 2000;
-  if (p === "vip" || p === "diamond") return 3000;
-  return 0; // 0 => no limit (fallback)
-}
 
 function ReportComp() {
   const [data, setData] = useState([]);
@@ -61,14 +56,22 @@ function ReportComp() {
   const [visibleMap, setVisibleMap] = useState({});
   const [finalReports, setFinalReports] = useState([]);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
+  const [editDraft, setEditDraft] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const location = useLocation();
-  const user = location.state?.user; // ✅ passed from Manage Users
-  const userId = user?._id; // ✅ for admin routes
+  const user = location.state?.user;
+  const userId = user?._id;
 
   const packageName = user?.packages?.name || "";
-  const limit = useMemo(() => getLimitFromPackage(packageName), [packageName]);
+  const limit = useMemo(() => {
+    const v = Number(user?.packages?.forms);
+    return Number.isFinite(v) ? v : 0;
+  }, [user?.packages?.forms]);
 
-  // Load excel
+
   useEffect(() => {
     const loadExcel = async () => {
       try {
@@ -88,18 +91,16 @@ function ReportComp() {
     loadExcel();
   }, []);
 
-  // ✅ keep headerss same as excel headers (stable even if user inputs shuffled)
   useEffect(() => {
     if (headers.length) setHeaderss(headers);
   }, [headers]);
 
-  // Fetch user's submitted entries (admin side)
   useEffect(() => {
     const fetchEntries = async () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `https://api.freelancing-projects.com/api/admin/${userId}/get-reports`,
+          `http://localhost:1212/api/admin/${userId}/get-reports`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -116,13 +117,12 @@ function ReportComp() {
     if (userId) fetchEntries();
   }, [userId]);
 
-  // Fetch final reports (admin side)
   const fetchFinalReports = async () => {
     try {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
-        `https://api.freelancing-projects.com/api/admin/${userId}/get-finalreports`,
+        `http://localhost:1212/api/admin/${userId}/get-finalreports`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -141,7 +141,6 @@ function ReportComp() {
     if (userId) fetchFinalReports();
   }, [userId]);
 
-  // Toggle visible (publish/unpublish)
   const toggleVisible = async (row) => {
     const newValue = !visibleMap[row.formNo];
     setVisibleMap((prev) => ({ ...prev, [row.formNo]: newValue }));
@@ -157,7 +156,7 @@ function ReportComp() {
       };
 
       const res = await axios.post(
-        `https://api.freelancing-projects.com/api/admin/${userId}/save-reports`,
+        `http://localhost:1212/api/admin/${userId}/save-reports`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -173,11 +172,10 @@ function ReportComp() {
       }
     } catch (err) {
       console.error("Failed to save report visibility", err);
-      setVisibleMap((prev) => ({ ...prev, [row.formNo]: !newValue })); // rollback
+      setVisibleMap((prev) => ({ ...prev, [row.formNo]: !newValue }));
     }
   };
 
-  // ✅ Shuffled + limited data (same idea as WorkComp)
   const displayData = useMemo(() => {
     if (!data.length) return [];
     if (!userId) return data;
@@ -189,7 +187,6 @@ function ReportComp() {
     return shuffled;
   }, [data, userId, limit]);
 
-  // Excel header normalization map
   const excelHeaderMap = useMemo(() => {
     const map = {};
     const first = data?.[0] || {};
@@ -199,7 +196,6 @@ function ReportComp() {
     return map;
   }, [data]);
 
-  // excelRowId mapping matches the limited displayData
   const excelByRowId = useMemo(() => {
     const map = {};
     for (let i = 0; i < displayData.length; i++) {
@@ -208,13 +204,11 @@ function ReportComp() {
     return map;
   }, [displayData]);
 
-  // ✅ FIXED comparison: user responses matched by normalized key (not strict key string)
   const comparisonRows = useMemo(() => {
     return entries.map((entry) => {
       const rowId = Number(entry.excelRowId);
       const excelRow = Number.isFinite(rowId) ? excelByRowId[rowId] : null;
 
-      // ✅ normalized user response keys map
       const userResponseMap = {};
       Object.entries(entry.responses || {}).forEach(([k, v]) => {
         userResponseMap[normKey(k)] = v;
@@ -226,7 +220,6 @@ function ReportComp() {
       const perField = {};
       for (const h of headerss) {
         totalFields++;
-
         const realExcelKey = excelHeaderMap[normKey(h)] || h;
 
         const excelVal = excelRow ? excelRow[realExcelKey] : "";
@@ -265,6 +258,57 @@ function ReportComp() {
     return { totalMistakes, totalMistakePercent: totalMistakes };
   }, [summaryRows]);
 
+  const openEdit = (row) => {
+    const initial = {};
+    headerss.forEach((h) => {
+      initial[h] = row?.perField?.[h]?.userVal ?? "";
+    });
+
+    setEditEntry(row);
+    setEditDraft(initial);
+    setEditOpen(true);
+  };
+
+  const closeEdit = () => {
+    if (savingEdit) return;
+    setEditOpen(false);
+    setEditEntry(null);
+    setEditDraft({});
+  };
+
+  const onChangeField = (key, value) => {
+    setEditDraft((p) => ({ ...p, [key]: value }));
+  };
+
+  const saveEdit = async () => {
+    try {
+      if (!editEntry?._id) return;
+
+      setSavingEdit(true);
+
+      const token = localStorage.getItem("token");
+
+      const res = await axios.put(
+        `http://localhost:1212/api/admin/form-entry/${editEntry._id}`,
+        { responses: editDraft },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const updatedEntry = res.data;
+
+      setEntries((prev) =>
+        prev.map((e) => (e._id === updatedEntry._id ? updatedEntry : e))
+      );
+
+      closeEdit();
+    } catch (err) {
+      console.log(err);
+      alert("Failed to update responses");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div className="myworkk">
       <div className="topRow">
@@ -295,6 +339,7 @@ function ReportComp() {
             th={th}
             td={td}
             toStr={toStr}
+            onEdit={openEdit}
           />
 
           <div style={{ marginTop: 10, color: "#222", fontSize: 13 }}>
@@ -341,6 +386,18 @@ function ReportComp() {
         finalReports={finalReports}
         userId={userId}
         onUpdatedFinalReports={fetchFinalReports}
+      />
+
+      {/* ✅ Modal in separate file */}
+      <EditResponsesModal
+        open={editOpen}
+        saving={savingEdit}
+        entry={editEntry}
+        headerss={headerss}
+        draft={editDraft}
+        onChangeField={onChangeField}
+        onClose={closeEdit}
+        onSave={saveEdit}
       />
     </div>
   );

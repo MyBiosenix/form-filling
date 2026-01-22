@@ -40,6 +40,27 @@ exports.login = async(req,res) => {
     }
 }
 
+exports.ChangePassword = async(req,res) => {
+  try{
+    const {id} = req.params;
+    const {password, newpassword} = req.body;
+    const admin = await Admin.findByIdAndUpdate(id).select('password');
+    if(!admin){
+      return res.status(400).json({message:'Admin Not Found'})
+    }
+    if(password !== admin.password){
+      return res.status(400).json({message:'Please Enter Correct Previous Password'});
+    }
+    admin.password = newpassword;
+
+    await admin.save();
+    res.status(200).json({message:'Password Updated Succesfully'});
+  }
+  catch(err){
+    res.status(500).json({message:err.message});
+  }
+}
+
 exports.createadmin = async(req,res) => {
     try{
         const { name,email,password,role } = req.body;
@@ -248,7 +269,7 @@ exports.getPackageName = async(req,res) => {
 
 exports.getUsers = async(req,res) => {
     try{
-        const users = await User.find().select('-__v').populate("packages","name").populate("admin","name");
+        const users = await User.find().select('-__v').populate("packages","name forms").populate("admin","name");
         res.status(200).json(users);
     }
     catch(err){
@@ -364,6 +385,32 @@ exports.getReports = async (req, res) => {
   }
 };
 
+exports.updateFormEntryResponses = async (req, res) => {
+  try {
+    const { entryId } = req.params;
+    const { responses } = req.body;
+
+    if (!responses || typeof responses !== "object") {
+      return res.status(400).json({ message: "responses object is required" });
+    }
+
+    const updated = await FormEntry.findByIdAndUpdate(
+      entryId,
+      { $set: { responses } },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      return res.status(404).json({ message: "FormEntry not found" });
+    }
+
+    return res.status(200).json(updated);
+  } catch (err) {
+    console.log("updateFormEntryResponses ERROR:", err);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 exports.saveReport = async (req, res) => {
   try {
     const { formNo, mistakes, mistakePercent, visible } = req.body;
@@ -397,7 +444,7 @@ exports.getSavedReports = async (req, res) => {
     const { userId } = req.params;
 
     const reports = await FinalReport.find({ userId })
-      .select("formNo") // only need formNo to mark checkbox checked
+      .select("formNo") 
       .lean();
 
     return res.status(200).json(reports);

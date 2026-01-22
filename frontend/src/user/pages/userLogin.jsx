@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../../admin/styles/Login.css";
+import "../styles/login.css"
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
@@ -27,15 +27,12 @@ function UserLogin() {
       }
 
       try {
-        // Your backend route: router.get('/me', loginMiddleware, me);
-        await axios.get("https://api.freelancing-projects.com/api/user/me", {
+        await axios.get("http://localhost:1212/api/user/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // ✅ session is valid -> go home
         navigate("/home", { replace: true });
       } catch (err) {
-        // ❌ token invalid / session kicked / deactivated -> stay on login
         localStorage.clear();
         setCheckingAuth(false);
       }
@@ -69,7 +66,7 @@ function UserLogin() {
     if (!valid) return;
 
     try {
-      const res = await axios.post("https://api.freelancing-projects.com/api/user/login", {
+      const res = await axios.post("http://localhost:1212/api/user/login", {
         email,
         password,
         forceLogin,
@@ -80,7 +77,6 @@ function UserLogin() {
       localStorage.setItem("user", JSON.stringify(res.data.user));
       localStorage.setItem("userId", res.data.user.id);
 
-      // ✅ Optional: store status if you use it later
       if (typeof res.data.user.status !== "undefined") {
         localStorage.setItem("status", String(res.data.user.status));
       }
@@ -106,7 +102,6 @@ function UserLogin() {
     }
   };
 
-  // ✅ While checking, render nothing or a loader (prevents showing login briefly)
   if (checkingAuth) {
     return (
       <div className="mylogin1">
