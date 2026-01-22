@@ -16,7 +16,7 @@ function SMuComp() {
 
   const getUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:1212/api/sub-admin/getusers", {
+      const res = await axios.get("https://api.freelancing-projects.com/api/sub-admin/getusers", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -30,7 +30,7 @@ function SMuComp() {
   const handleAcivateUser = async (id) => {
     try {
       await axios.put(
-        `http://localhost:1212/api/admin/${id}/activate-user`,
+        `https://api.freelancing-projects.com/api/admin/${id}/activate-user`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -43,7 +43,7 @@ function SMuComp() {
   const handleDeactivateUser = async (id) => {
     try {
       await axios.put(
-        `http://localhost:1212/api/admin/${id}/deactivate-user`,
+        `https://api.freelancing-projects.com/api/admin/${id}/deactivate-user`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

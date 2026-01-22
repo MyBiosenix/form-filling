@@ -27,7 +27,7 @@ function UserLogin() {
       }
 
       try {
-        await axios.get("http://localhost:1212/api/user/me", {
+        await axios.get("https://api.freelancing-projects.com/api/user/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -66,7 +66,7 @@ function UserLogin() {
     if (!valid) return;
 
     try {
-      const res = await axios.post("http://localhost:1212/api/user/login", {
+      const res = await axios.post("https://api.freelancing-projects.com/api/user/login", {
         email,
         password,
         forceLogin,
