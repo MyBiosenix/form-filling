@@ -88,8 +88,8 @@ function Dashboard() {
                 <FaChartLine className='icn'/>
                 <div className='inbox'>
                     <h5>Report</h5>
-                    <h4>0</h4>
-                    <p className='forms'>My Reports</p>
+                    <h4>Click to See</h4>
+                    <p className='forms'>Your Reports</p>
                 </div>
             </div>
         </div>

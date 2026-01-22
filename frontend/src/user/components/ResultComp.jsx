@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import "../styles/result.css";
 import * as XLSX from "xlsx";
 import ExcelTable from "../../user/components/ExcelTable";
@@ -30,6 +30,40 @@ function shuffleWithSeed(arr, seed) {
   return a;
 }
 
+/** ✅ Download Final Reports as .xlsx */
+function downloadFinalReportsXlsx(finalReports) {
+  if (!finalReports || finalReports.length === 0) return;
+
+  const rows = finalReports
+    .slice()
+    .sort((a, b) => Number(a.formNo) - Number(b.formNo))
+    .map((r) => ({
+      "Form No": r.formNo,
+      Mistakes: Number(r.mistakes) || 0,
+      "Mistake %": `${Number(r.mistakePercent) || 0}%`,
+      "Saved At": r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+    }));
+
+  const totalMistakes = rows.reduce(
+    (sum, r) => sum + (Number(r.Mistakes) || 0),
+    0
+  );
+
+  rows.push({
+    "Form No": "TOTAL",
+    Mistakes: totalMistakes,
+    "Mistake %": `${totalMistakes}%`,
+    "Saved At": "",
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Final Report");
+
+  const fileName = `Final_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+}
+
 function MyResponses({ title = "My Responses", goal = 0 }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,15 +72,15 @@ function MyResponses({ title = "My Responses", goal = 0 }) {
     const fetchEntries = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("https://api.freelancing-projects.com/api/user/entries", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axios.get(
+          "https://api.freelancing-projects.com/api/user/entries",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
         let data = Array.isArray(res.data) ? res.data : [];
         data.sort((a, b) => a.formNo - b.formNo);
 
         if (Number(goal) > 0) data = data.slice(0, Number(goal));
-
         setEntries(data);
       } catch (err) {
         console.log(err);
@@ -109,10 +143,9 @@ function FinalReports({ title = "Your Report" }) {
   const [finalReports, setFinalReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchFinalReports = async () => {
+  const fetchFinalReports = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
-
       const res = await axios.get(
         "https://api.freelancing-projects.com/api/user/finalreports",
         { headers: { Authorization: `Bearer ${token}` } }
@@ -127,11 +160,11 @@ function FinalReports({ title = "Your Report" }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchFinalReports();
-  }, []);
+  }, [fetchFinalReports]);
 
   const totals = useMemo(() => {
     const totalMistakes = finalReports.reduce(
@@ -144,8 +177,38 @@ function FinalReports({ title = "Your Report" }) {
 
   return (
     <section className="finalCard">
-      <div className="finalHead">
+      <div
+        className="finalHead"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
         <h3>{title}</h3>
+
+        <button
+          onClick={() => downloadFinalReportsXlsx(finalReports)}
+          disabled={loading || finalReports.length === 0}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "white",
+            color:'black',
+            cursor:
+              loading || finalReports.length === 0 ? "not-allowed" : "pointer",
+            fontWeight: 700,
+          }}
+          title={
+            finalReports.length === 0
+              ? "No reports to download"
+              : "Download as Excel"
+          }
+        >
+          ⬇ Download Report
+        </button>
       </div>
 
       <div className="finalTableWrap">
@@ -155,20 +218,19 @@ function FinalReports({ title = "Your Report" }) {
               <th>Form No</th>
               <th>Mistakes</th>
               <th>Mistake %</th>
-              <th>Saved At</th>
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="finalEmpty">
+                <td colSpan={3} className="finalEmpty">
                   Loading...
                 </td>
               </tr>
             ) : finalReports.length === 0 ? (
               <tr>
-                <td colSpan={4} className="finalEmpty">
+                <td colSpan={3} className="finalEmpty">
                   Reports Not Published yet
                 </td>
               </tr>
@@ -179,9 +241,6 @@ function FinalReports({ title = "Your Report" }) {
                     <td className="finalStrong">{r.formNo}</td>
                     <td className="finalStrong">{r.mistakes}</td>
                     <td className="finalStrong">{r.mistakePercent}%</td>
-                    <td className="finalMuted">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}
-                    </td>
                   </tr>
                 ))}
 
@@ -189,7 +248,6 @@ function FinalReports({ title = "Your Report" }) {
                   <td className="finalStrong">TOTAL</td>
                   <td className="finalStrong">{totals.totalMistakes}</td>
                   <td className="finalStrong">{totals.totalMistakePercent}%</td>
-                  <td />
                 </tr>
               </>
             )}
@@ -204,18 +262,15 @@ function FinalReports({ title = "Your Report" }) {
   );
 }
 
-/** ------------------ Main ResultComp ------------------ */
 export default function ResultComp() {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
 
-  // ✅ goal from dashboard
   const [goal, setGoal] = useState(0);
   const [goalLoading, setGoalLoading] = useState(true);
 
   const userId = localStorage.getItem("userId");
 
-  // 1) fetch goal
   useEffect(() => {
     const fetchGoal = async () => {
       try {
@@ -231,7 +286,7 @@ export default function ResultComp() {
         setGoal(g);
       } catch (err) {
         console.log("Failed to load goal", err);
-        setGoal(0); // fallback => show all
+        setGoal(0);
       } finally {
         setGoalLoading(false);
       }
@@ -240,7 +295,6 @@ export default function ResultComp() {
     fetchGoal();
   }, [userId]);
 
-  // 2) load excel
   useEffect(() => {
     const loadExcel = async () => {
       try {
@@ -270,7 +324,7 @@ export default function ResultComp() {
   const displayData = useMemo(() => {
     if (!shuffledData.length) return [];
     if (Number(goal) > 0) return shuffledData.slice(0, Number(goal));
-    return shuffledData; // fallback if goal not available
+    return shuffledData;
   }, [shuffledData, goal]);
 
   return (
@@ -281,7 +335,11 @@ export default function ResultComp() {
             <h2>Excel Data</h2>
 
             <p style={{ marginTop: -8, color: "#6b7280", fontSize: 13 }}>
-              {goalLoading ? "Loading goal..." : goal ? `Assigned: ${goal} rows` : "Assigned: All rows"}
+              {goalLoading
+                ? "Loading goal..."
+                : goal
+                ? `Assigned: ${goal} rows`
+                : "Assigned: All rows"}
             </p>
 
             <ExcelTable data={displayData} headers={headers} />
