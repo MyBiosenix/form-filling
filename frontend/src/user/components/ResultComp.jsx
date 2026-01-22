@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import ExcelTable from "../../user/components/ExcelTable";
 import axios from "axios";
 
+/** ------------------- seeded shuffle helpers ------------------- */
 function xfnv1a(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -30,6 +31,13 @@ function shuffleWithSeed(arr, seed) {
   return a;
 }
 
+/** ------------------- compare helpers (for cell highlight) ------------------- */
+const norm = (v) =>
+  String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
 /** ✅ Download Final Reports as .xlsx */
 function downloadFinalReportsXlsx(finalReports) {
   if (!finalReports || finalReports.length === 0) return;
@@ -44,10 +52,7 @@ function downloadFinalReportsXlsx(finalReports) {
       "Saved At": r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
     }));
 
-  const totalMistakes = rows.reduce(
-    (sum, r) => sum + (Number(r.Mistakes) || 0),
-    0
-  );
+  const totalMistakes = rows.reduce((sum, r) => sum + (Number(r.Mistakes) || 0), 0);
 
   rows.push({
     "Form No": "TOTAL",
@@ -64,7 +69,14 @@ function downloadFinalReportsXlsx(finalReports) {
   XLSX.writeFile(wb, fileName);
 }
 
-function MyResponses({ title = "My Responses", goal = 0 }) {
+/** ------------------- MyResponses ------------------- */
+function MyResponses({
+  title = "My Responses",
+  goal = 0,
+  mistakeFormSet,
+  excelByRowId,
+  excelHeaders,
+}) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -94,9 +106,33 @@ function MyResponses({ title = "My Responses", goal = 0 }) {
   }, [goal]);
 
   const headers = useMemo(() => {
+    // Prefer excel headers for stable order
+    if (Array.isArray(excelHeaders) && excelHeaders.length) return excelHeaders;
+
+    // fallback: derive from first entry responses
     if (!entries.length) return [];
     return Object.keys(entries[0]?.responses || {});
-  }, [entries]);
+  }, [entries, excelHeaders]);
+
+  const hasMistake = useCallback(
+    (formNo) => (mistakeFormSet ? mistakeFormSet.has(Number(formNo)) : false),
+    [mistakeFormSet]
+  );
+
+  const isCellMistake = useCallback(
+    (entry, header) => {
+      // We only highlight if we can read excel row
+      const rowId = Number(entry?.excelRowId);
+      const excelRow = Number.isFinite(rowId) ? excelByRowId?.[rowId] : null;
+      if (!excelRow) return false;
+
+      const excelVal = excelRow?.[header] ?? "";
+      const userVal = entry?.responses?.[header] ?? "";
+
+      return norm(excelVal) !== norm(userVal);
+    },
+    [excelByRowId]
+  );
 
   return (
     <div className="myres">
@@ -121,53 +157,77 @@ function MyResponses({ title = "My Responses", goal = 0 }) {
             </thead>
 
             <tbody>
-              {entries.map((e) => (
-                <tr key={e._id}>
-                  <td>{e.formNo}</td>
-                  <td>{e.excelRowId}</td>
-                  <td>{new Date(e.createdAt).toLocaleString()}</td>
-                  {headers.map((h) => (
-                    <td key={h}>{e.responses?.[h] || ""}</td>
-                  ))}
-                </tr>
-              ))}
+              {entries.map((e) => {
+                const rowMark = hasMistake(e.formNo);
+
+                return (
+                  <tr
+                    key={e._id}
+                    style={{
+                      backgroundColor: rowMark ? "#ffe2e2" : "transparent",
+                      fontWeight: rowMark ? 700 : 400,
+                    }}
+                    title={rowMark ? "This form has mistakes" : ""}
+                  >
+                    <td>{e.formNo}</td>
+                    <td>{e.excelRowId}</td>
+                    <td>{new Date(e.createdAt).toLocaleString()}</td>
+
+                    {headers.map((h) => {
+                      const cellMistake = rowMark && isCellMistake(e, h);
+
+                      return (
+                        <td
+                          key={h}
+                          style={{
+                            backgroundColor: cellMistake ? "#ffb3b3" : "transparent",
+                            fontWeight: cellMistake ? 800 : "inherit",
+                            border: cellMistake ? "1px solid #ef4444" : undefined,
+                          }}
+                          title={cellMistake ? "Mismatch with Excel value" : ""}
+                        >
+                          {e.responses?.[h] ?? ""}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+
+          {/* small legend */}
+          <div style={{ marginTop: 10, fontSize: 12, color: "#444" }}>
+            <span
+              style={{
+                background: "#ffe2e2",
+                padding: "2px 8px",
+                border: "1px solid #ddd",
+                marginRight: 8,
+              }}
+            >
+              Row has mistakes
+            </span>
+            <span
+              style={{
+                background: "#ffb3b3",
+                padding: "2px 8px",
+                border: "1px solid #ef4444",
+              }}
+            >
+              Wrong cell
+            </span>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function FinalReports({ title = "Your Report" }) {
-  const [finalReports, setFinalReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchFinalReports = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get(
-        "https://api.freelancing-projects.com/api/user/finalreports",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const list = Array.isArray(res.data) ? res.data : [];
-      list.sort((a, b) => a.formNo - b.formNo);
-      setFinalReports(list);
-    } catch (err) {
-      console.log(err);
-      setFinalReports([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchFinalReports();
-  }, [fetchFinalReports]);
-
+/** ------------------- FinalReports ------------------- */
+function FinalReports({ title = "Your Report", finalReports, loading }) {
   const totals = useMemo(() => {
-    const totalMistakes = finalReports.reduce(
+    const totalMistakes = (finalReports || []).reduce(
       (sum, r) => sum + (Number(r.mistakes) || 0),
       0
     );
@@ -190,22 +250,17 @@ function FinalReports({ title = "Your Report" }) {
 
         <button
           onClick={() => downloadFinalReportsXlsx(finalReports)}
-          disabled={loading || finalReports.length === 0}
+          disabled={loading || !finalReports?.length}
           style={{
             padding: "8px 12px",
             borderRadius: 8,
             border: "1px solid #d1d5db",
             background: "white",
-            color:'black',
-            cursor:
-              loading || finalReports.length === 0 ? "not-allowed" : "pointer",
+            color: "black",
+            cursor: loading || !finalReports?.length ? "not-allowed" : "pointer",
             fontWeight: 700,
           }}
-          title={
-            finalReports.length === 0
-              ? "No reports to download"
-              : "Download as Excel"
-          }
+          title={!finalReports?.length ? "No reports to download" : "Download as Excel"}
         >
           ⬇ Download Report
         </button>
@@ -228,7 +283,7 @@ function FinalReports({ title = "Your Report" }) {
                   Loading...
                 </td>
               </tr>
-            ) : finalReports.length === 0 ? (
+            ) : !finalReports?.length ? (
               <tr>
                 <td colSpan={3} className="finalEmpty">
                   Reports Not Published yet
@@ -255,13 +310,12 @@ function FinalReports({ title = "Your Report" }) {
         </table>
       </div>
 
-      <div className="finalHint">
-        Tip: These are the reports published by admin for your account.
-      </div>
+      <div className="finalHint">Tip: These are the reports published by admin for your account.</div>
     </section>
   );
 }
 
+/** ------------------- ResultComp (FULL) ------------------- */
 export default function ResultComp() {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -269,8 +323,16 @@ export default function ResultComp() {
   const [goal, setGoal] = useState(0);
   const [goalLoading, setGoalLoading] = useState(true);
 
+  // ✅ final reports in parent (used for download + highlighting)
+  const [finalReports, setFinalReports] = useState([]);
+  const [finalLoading, setFinalLoading] = useState(true);
+
+  // ✅ forms that have mistakes (fast lookup for red row highlighting)
+  const [mistakeFormSet, setMistakeFormSet] = useState(new Set());
+
   const userId = localStorage.getItem("userId");
 
+  /** goal */
   useEffect(() => {
     const fetchGoal = async () => {
       try {
@@ -295,6 +357,7 @@ export default function ResultComp() {
     fetchGoal();
   }, [userId]);
 
+  /** excel */
   useEffect(() => {
     const loadExcel = async () => {
       try {
@@ -315,17 +378,59 @@ export default function ResultComp() {
     loadExcel();
   }, []);
 
+  /** final reports */
+  const fetchFinalReports = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        "https://api.freelancing-projects.com/api/user/finalreports",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const list = Array.isArray(res.data) ? res.data : [];
+      list.sort((a, b) => a.formNo - b.formNo);
+
+      setFinalReports(list);
+
+      const set = new Set(
+        list.filter((r) => Number(r.mistakes) > 0).map((r) => Number(r.formNo))
+      );
+      setMistakeFormSet(set);
+    } catch (err) {
+      console.log("Failed to load final reports", err);
+      setFinalReports([]);
+      setMistakeFormSet(new Set());
+    } finally {
+      setFinalLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFinalReports();
+  }, [fetchFinalReports]);
+
+  /** shuffle excel rows per user */
   const shuffledData = useMemo(() => {
     if (!data.length) return [];
     if (!userId) return data;
     return shuffleWithSeed(data, xfnv1a(String(userId)));
   }, [data, userId]);
 
+  /** limit excel rows by goal */
   const displayData = useMemo(() => {
     if (!shuffledData.length) return [];
     if (Number(goal) > 0) return shuffledData.slice(0, Number(goal));
     return shuffledData;
   }, [shuffledData, goal]);
+
+  /** map excelRowId -> excel row (1-based) */
+  const excelByRowId = useMemo(() => {
+    const map = {};
+    for (let i = 0; i < displayData.length; i++) {
+      map[i + 1] = displayData[i];
+    }
+    return map;
+  }, [displayData]);
 
   return (
     <div className="myworkk">
@@ -347,11 +452,17 @@ export default function ResultComp() {
         </div>
 
         <div className="wrk1">
-          <MyResponses title="My Responses" goal={goal} />
+          <MyResponses
+            title="My Responses"
+            goal={goal}
+            mistakeFormSet={mistakeFormSet}
+            excelByRowId={excelByRowId}
+            excelHeaders={headers}
+          />
         </div>
       </div>
 
-      <FinalReports title="Your Reports" />
+      <FinalReports title="Your Reports" finalReports={finalReports} loading={finalLoading} />
     </div>
   );
 }
