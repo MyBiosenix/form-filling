@@ -174,6 +174,8 @@ exports.getdashStats = async (req, res) => {
       packageName,
       goal,
       totalFormsDone,
+
+      reportDeclared: user.reportDeclared,
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });

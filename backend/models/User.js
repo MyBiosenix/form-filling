@@ -52,6 +52,11 @@ const userSchema = new mongoose.Schema({
         default: false,
         index: true,
     },
+    reportDeclared:{
+        type: Boolean,
+        default: false,
+        index: true
+    }
 })
 
 module.exports = mongoose.model("User",userSchema);

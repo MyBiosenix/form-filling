@@ -11,17 +11,18 @@ html, body {
 .comp{
     padding: 10px 20px;
 }
+
 .comp h3{
     font-size: 28px;
     color: black;
 }
+
 .incomp{
     display: flex;
     flex-direction: column;
     gap: 20px;
     background: #fff;
     padding: 10px 20px;
-    height: 500px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 .go{
@@ -50,6 +51,14 @@ html, body {
     font-size: 20px;
     margin: 0;
     cursor: pointer;
+}
+.table-wrapperr{
+    overflow: auto;
+    border: 1px solid #e0e3e7;
+    border-radius: 6px;
+    scrollbar-width: thin;
+    scrollbar-width: thin;
+    scrollbar-color: #006408 #f9f3e3;
 }
 .type{
     background: linear-gradient(180deg, #1b8f2f, #0f7a24);
@@ -122,7 +131,7 @@ html, body {
     padding: 15px 10px;
     border-radius: 10px;
 }
-/* Sticky Pagination Container */
+
 .pagination-container {
   position: sticky;
   bottom: 0;
@@ -133,7 +142,7 @@ html, body {
   text-align: center;
 }
 
-/* Pagination Buttons Styling */
+
 .pagination {
   display: inline-flex;
   align-items: center;
@@ -169,6 +178,7 @@ html, body {
   color: #333;
   margin: 0 6px;
 }
+
 .draft {
   padding: 6px 10px;
   border-radius: 4px;

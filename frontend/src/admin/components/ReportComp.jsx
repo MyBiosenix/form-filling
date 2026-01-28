@@ -7,7 +7,7 @@ import axios from "axios";
 
 import ComparisonTable from "./ComparisonTable";
 import MistakeSummaryPanel from "./MistakeSummaryPanel";
-import EditResponsesModal from "./EditResponsesModal"; // ✅ NEW
+import EditResponsesModal from "./EditResponsesModal";
 import { toStr, compareCell } from "./ReportUtils";
 
 function xfnv1a(str) {
@@ -45,7 +45,6 @@ const normKey = (s) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
-
 function ReportComp() {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -61,6 +60,10 @@ function ReportComp() {
   const [editDraft, setEditDraft] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // ✅ NEW: declare/undeclare report
+  const [reportDeclared, setReportDeclared] = useState(false);
+  const [declaring, setDeclaring] = useState(false);
+
   const location = useLocation();
   const user = location.state?.user;
   const userId = user?._id;
@@ -71,6 +74,10 @@ function ReportComp() {
     return Number.isFinite(v) ? v : 0;
   }, [user?.packages?.forms]);
 
+  // ✅ set initial state from navigation (if provided)
+  useEffect(() => {
+    setReportDeclared(!!user?.reportDeclared);
+  }, [user?.reportDeclared]);
 
   useEffect(() => {
     const loadExcel = async () => {
@@ -173,6 +180,52 @@ function ReportComp() {
     } catch (err) {
       console.error("Failed to save report visibility", err);
       setVisibleMap((prev) => ({ ...prev, [row.formNo]: !newValue }));
+    }
+  };
+
+  // ✅ Declare Report (User-wise)
+  const declareReport = async () => {
+    try {
+      if (!userId) return;
+      setDeclaring(true);
+
+      const token = localStorage.getItem("token");
+      const res = await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${userId}/declare-report`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setReportDeclared(!!res.data?.reportDeclared);
+      alert("✅ Report Declared for this user");
+    } catch (err) {
+      console.log(err);
+      alert("Failed to declare report");
+    } finally {
+      setDeclaring(false);
+    }
+  };
+
+  // ✅ Undeclare Report (User-wise)
+  const undeclareReport = async () => {
+    try {
+      if (!userId) return;
+      setDeclaring(true);
+
+      const token = localStorage.getItem("token");
+      const res = await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${userId}/undeclare-report`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setReportDeclared(!!res.data?.reportDeclared);
+      alert("✅ Report Undeclared for this user");
+    } catch (err) {
+      console.log(err);
+      alert("Failed to undeclare report");
+    } finally {
+      setDeclaring(false);
     }
   };
 
@@ -388,7 +441,6 @@ function ReportComp() {
         onUpdatedFinalReports={fetchFinalReports}
       />
 
-      {/* ✅ Modal in separate file */}
       <EditResponsesModal
         open={editOpen}
         saving={savingEdit}
@@ -399,6 +451,42 @@ function ReportComp() {
         onClose={closeEdit}
         onSave={saveEdit}
       />
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+        <button
+          onClick={undeclareReport}
+          disabled={declaring || !reportDeclared}
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1px solid #d1d5db",
+            background: !reportDeclared ? "#e5e7eb" : "#fff",
+            color: "#111",
+            cursor: declaring || !reportDeclared ? "not-allowed" : "pointer",
+            fontWeight: 800,
+          }}
+          title={!reportDeclared ? "Already undeclared" : "Hide report for this user"}
+        >
+          Undeclare Report
+        </button>
+
+        <button
+          onClick={declareReport}
+          disabled={declaring || reportDeclared}
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1px solid #d1d5db",
+            background: reportDeclared ? "#e5e7eb" : "black",
+            color: reportDeclared ? "#374151" : "white",
+            cursor: declaring || reportDeclared ? "not-allowed" : "pointer",
+            fontWeight: 800,
+          }}
+          title={reportDeclared ? "Already declared" : "Show report for this user"}
+        >
+          {declaring ? "Processing..." : reportDeclared ? "✅ Report Declared" : "Declare Report"}
+        </button>
+      </div>
     </div>
   );
 }

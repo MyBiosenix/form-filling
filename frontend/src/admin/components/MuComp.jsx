@@ -11,6 +11,10 @@ function MuComp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // ✅ expiry sort like your old project
+  const [sortField, setSortField] = useState(null); // "expiry"
+  const [sortOrder, setSortOrder] = useState("asc");
+
   const itemsPerPage = 10;
   const token = localStorage.getItem("token");
 
@@ -78,7 +82,6 @@ function MuComp() {
     }
   };
 
-  // ✅ OPTIONAL: if you want "In Draft" button to REMOVE from draft (toggle)
   const handleRemoveFromDraft = async (id) => {
     try {
       await axios.put(
@@ -116,6 +119,7 @@ function MuComp() {
     return `${locale} ${dmy} ${monthName}`.toLowerCase();
   };
 
+  // ✅ Filter (search)
   const filteredUsers = useMemo(() => {
     const term = normalize(searchTerm);
     if (!term) return users;
@@ -127,8 +131,6 @@ function MuComp() {
       const admin = normalize(u.admin?.name);
       const status = u.status ? "active" : "inactive";
       const expiryStr = expirySearchString(u.expiry);
-
-      // ✅ include draft status in search too
       const draftStatus = u.isDraft ? "draft" : "not draft";
 
       return (
@@ -143,14 +145,41 @@ function MuComp() {
     });
   }, [users, searchTerm]);
 
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+  // ✅ Sort (expiry)
+  const sortedUsers = useMemo(() => {
+    if (sortField !== "expiry") return filteredUsers;
 
+    const copy = [...filteredUsers];
+
+    copy.sort((a, b) => {
+      const da = a.expiry ? new Date(a.expiry).getTime() : 0;
+      const db = b.expiry ? new Date(b.expiry).getTime() : 0;
+
+      // if invalid date, treat as 0
+      const A = Number.isFinite(da) ? da : 0;
+      const B = Number.isFinite(db) ? db : 0;
+
+      return sortOrder === "asc" ? A - B : B - A;
+    });
+
+    return copy;
+  }, [filteredUsers, sortField, sortOrder]);
+
+  // ✅ Pagination on sorted list
+  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = sortedUsers.slice(indexOfFirstItem, indexOfLastItem);
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
+  // ✅ click handler for expiry sort toggle
+  const toggleExpirySort = () => {
+    setSortField("expiry");
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    setCurrentPage(1);
   };
 
   return (
@@ -177,6 +206,22 @@ function MuComp() {
             <p style={{ cursor: "pointer" }}>Excel</p>
             <p style={{ cursor: "pointer" }}>PDF</p>
           </div>
+  
+          <p
+            style={{
+              cursor: "pointer",
+              background: "#2575fc",
+              color: "white",
+              padding: "10px 20px",
+              borderRadius: "10px",
+              margin: 0,
+              userSelect: "none",
+            }}
+            onClick={toggleExpirySort}
+            title="Sort by expiry date"
+          >
+            Expiry: {sortOrder === "asc" ? "↑" : "↓"}
+          </p>
 
           <input
             type="text"
@@ -190,105 +235,111 @@ function MuComp() {
           />
         </div>
 
-        <table className="mytable">
-          <thead>
-            <tr>
-              <th className="myth">Sr.No.</th>
-              <th className="myth">Name</th>
-              <th className="myth">Package</th>
-              <th className="myth">Admin</th>
-              <th className="myth">Email Id</th>
-              <th className="myth">Password</th>
-              <th className="myth">Status</th>
-              <th className="myth">Expiry</th>
-              <th className="myth">Action</th>
-            </tr>
-          </thead>
+        <div className="table-wrapperr">
+          <table className="mytable">
+            <thead>
+              <tr>
+                <th className="myth">Sr.No.</th>
+                <th className="myth">Name</th>
+                <th className="myth">Package</th>
+                <th className="myth">Admin</th>
+                <th className="myth">Email Id</th>
+                <th className="myth">Password</th>
+                <th className="myth">Status</th>
+                <th className="myth">Expiry</th>
+                <th className="myth">Goal Status</th>
+                <th className="myth">Action</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((user, index) => (
-                <tr key={user._id}>
-                  <td className="mytd">{indexOfFirstItem + index + 1}</td>
-                  <td className="mytd">{user.name}</td>
-                  <td className="mytd">{user.packages?.name || "No Package"}</td>
-                  <td className="mytd">{user.admin?.name || "-"}</td>
-                  <td className="mytd">{user.email}</td>
-                  <td className="mytd">{user.password}</td>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((user, index) => (
+                  <tr key={user._id}>
+                    <td className="mytd">{indexOfFirstItem + index + 1}</td>
+                    <td className="mytd">{user.name}</td>
+                    <td className="mytd">{user.packages?.name || "No Package"}</td>
+                    <td className="mytd">{user.admin?.name || "-"}</td>
+                    <td className="mytd">{user.email}</td>
+                    <td className="mytd">{user.password}</td>
 
-                  <td className="mytd">
-                    {user.status ? (
-                      <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
-                    ) : (
-                      <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
-                    )}
-                  </td>
+                    <td className="mytd">
+                      {user.status ? (
+                        <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
+                      ) : (
+                        <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
+                      )}
+                    </td>
 
-                  <td className="mytd">
-                    {user.expiry ? new Date(user.expiry).toLocaleDateString() : "-"}
-                  </td>
+                    <td className="mytd">
+                      {user.expiry ? new Date(user.expiry).toLocaleDateString() : "-"}
+                    </td>
 
-                  <td className="mybtnnns">
-                    <button
-                      className="edit"
-                      onClick={() =>
-                        navigate("/admin/manage-user/add-user", {
-                          state: { userToEdit: user },
-                        })
-                      }
-                    >
-                      Edit
-                    </button>
+                    <td className="mytd">
+                      {user.goal ? `${user.totalFormsDone || 0}/${user.goal}` : "-"}
+                    </td>
 
-                    <button className="delete" onClick={() => handleDeleteUser(user._id)}>
-                      Delete
-                    </button>
-
-                    {user.status ? (
-                      <button className="inactive" onClick={() => handleDeactivateUser(user._id)}>
-                        Deactivate
-                      </button>
-                    ) : (
-                      <button className="active" onClick={() => handleAcivateUser(user._id)}>
-                        Activate
-                      </button>
-                    )}
-
-                    {user.isDraft ? (
-                      <button className="inactive" disabled title="This user is already in Drafts">
-                        In Draft
+                    <td className="mybtnnns">
+                      <button
+                        className="edit"
+                        onClick={() =>
+                          navigate("/admin/manage-user/add-user", {
+                            state: { userToEdit: user },
+                          })
+                        }
+                      >
+                        Edit
                       </button>
 
-                    ) : (
-                      <button className="active" onClick={() => handleAddToDraft(user._id)}>
-                        Add to Draft
+                      <button className="delete" onClick={() => handleDeleteUser(user._id)}>
+                        Delete
                       </button>
-                    )}
 
-                    <button
-                      className="report"
-                      onClick={() =>
-                        navigate("/admin/manage-user/report", {
-                          state: { user: user },
-                        })
-                      }
-                    >
-                      Report
-                    </button>
+                      {user.status ? (
+                        <button className="inactive" onClick={() => handleDeactivateUser(user._id)}>
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button className="active" onClick={() => handleAcivateUser(user._id)}>
+                          Activate
+                        </button>
+                      )}
+
+                      {user.isDraft ? (
+                        <button className="inactive" disabled title="This user is already in Drafts">
+                          In Draft
+                        </button>
+                      ) : (
+                        <button className="active" onClick={() => handleAddToDraft(user._id)}>
+                          Add to Draft
+                        </button>
+                      )}
+
+                      <button
+                        className="report"
+                        onClick={() =>
+                          navigate("/admin/manage-user/report", {
+                            state: { user: user },
+                          })
+                        }
+                      >
+                        Report
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
+                    No users found
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
-                  No users found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {filteredUsers.length > 0 && (
+        {sortedUsers.length > 0 && (
           <div className="pagination-container">
             <div className="pagination">
               <button onClick={() => goToPage(1)} disabled={currentPage === 1}>

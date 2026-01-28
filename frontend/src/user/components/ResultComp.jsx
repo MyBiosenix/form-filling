@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import "../styles/result.css";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import ExcelTable from "../../user/components/ExcelTable";
 import axios from "axios";
 
@@ -38,38 +38,135 @@ const norm = (v) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
-/** ✅ Download Final Reports as .xlsx */
 function downloadFinalReportsXlsx(finalReports) {
   if (!finalReports || finalReports.length === 0) return;
 
-  const rows = finalReports
+  const sorted = finalReports
     .slice()
-    .sort((a, b) => Number(a.formNo) - Number(b.formNo))
-    .map((r) => ({
-      "Form No": r.formNo,
-      Mistakes: Number(r.mistakes) || 0,
-      "Mistake %": `${Number(r.mistakePercent) || 0}%`,
-      "Saved At": r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-    }));
+    .sort((a, b) => Number(a.formNo) - Number(b.formNo));
 
-  const totalMistakes = rows.reduce((sum, r) => sum + (Number(r.Mistakes) || 0), 0);
+  const rows = sorted.map((r) => ({
+    formNo: Number(r.formNo),
+    mistakes: Number(r.mistakes) || 0,
+    mistakePercent: `${Number(r.mistakePercent) || 0}%`,
+  }));
 
-  rows.push({
-    "Form No": "TOTAL",
-    Mistakes: totalMistakes,
-    "Mistake %": `${totalMistakes}%`,
-    "Saved At": "",
+  const totalMistakes = rows.reduce((sum, r) => sum + (Number(r.mistakes) || 0), 0);
+  const totalPercent = `${totalMistakes}%`;
+
+  const today = new Date();
+  const generatedAt = today.toLocaleString();
+
+  const aoa = [
+    ["FINAL REPORT", "", ""],
+    [`Generated At: ${generatedAt}`, "", ""],
+    ["", "", ""],
+    ["Form No", "Mistakes", "Mistake %"],
+    ...rows.map((r) => [r.formNo, r.mistakes, r.mistakePercent]),
+    ["", "", ""],
+    ["TOTAL", totalMistakes, totalPercent],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+
+  ws["!cols"] = [
+    { wch: 16 }, 
+    { wch: 16 }, 
+    { wch: 18 }, 
+  ];
+
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, 
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, 
+  ];
+
+  ws["!views"] = [{ state: "frozen", ySplit: 4 }];
+
+  const borderThin = {
+    top: { style: "thin", color: { rgb: "D1D5DB" } },
+    bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+    left: { style: "thin", color: { rgb: "D1D5DB" } },
+    right: { style: "thin", color: { rgb: "D1D5DB" } },
+  };
+
+  const setCellStyle = (addr, style) => {
+    if (!ws[addr]) return;
+    ws[addr].s = style;
+  };
+
+  const rangeStyle = (r1, c1, r2, c2, styleFn) => {
+    for (let r = r1; r <= r2; r++) {
+      for (let c = c1; c <= c2; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (!ws[addr]) continue;
+        ws[addr].s = styleFn(r, c, ws[addr]);
+      }
+    }
+  };
+
+  setCellStyle("A1", {
+    font: { bold: true, sz: 18, color: { rgb: "111827" } },
+    alignment: { horizontal: "center", vertical: "center" },
   });
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
+  setCellStyle("A2", {
+    font: { sz: 11, color: { rgb: "6B7280" } },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+
+  rangeStyle(3, 0, 3, 2, () => ({
+    font: { bold: true, color: { rgb: "FFFFFF" } },
+    fill: { patternType: "solid", fgColor: { rgb: "111827" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  }));
+
+  const dataStartRow = 4; 
+  const dataEndRow = dataStartRow + rows.length - 1;
+
+  rangeStyle(dataStartRow, 0, dataEndRow, 2, (r, c, cell) => {
+    const isEven = (r - dataStartRow) % 2 === 0;
+
+    let fill = isEven
+      ? { patternType: "solid", fgColor: { rgb: "F9FAFB" } }
+      : { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+
+    if (c === 1) {
+      const val = Number(cell.v) || 0;
+      if (val > 0) fill = { patternType: "solid", fgColor: { rgb: "FEF3C7" } };
+    }
+
+    return {
+      font: { color: { rgb: "111827" }, sz: 11 },
+      fill,
+      alignment: { horizontal: "center", vertical: "center" },
+      border: borderThin,
+    };
+  });
+
+  const totalRowIndex = 4 + rows.length + 1;
+
+  rangeStyle(totalRowIndex, 0, totalRowIndex, 2, () => ({
+    font: { bold: true, color: { rgb: "111827" } },
+    fill: { patternType: "solid", fgColor: { rgb: "E5E7EB" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  }));
+
+  setCellStyle(XLSX.utils.encode_cell({ r: totalRowIndex, c: 0 }), {
+    font: { bold: true, color: { rgb: "111827" } },
+    fill: { patternType: "solid", fgColor: { rgb: "E5E7EB" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  });
+
   XLSX.utils.book_append_sheet(wb, ws, "Final Report");
 
-  const fileName = `Final_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const fileName = `Final_Report_${today.toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
 }
 
-/** ------------------- MyResponses ------------------- */
 function MyResponses({
   title = "My Responses",
   goal = 0,
@@ -106,10 +203,8 @@ function MyResponses({
   }, [goal]);
 
   const headers = useMemo(() => {
-    // Prefer excel headers for stable order
     if (Array.isArray(excelHeaders) && excelHeaders.length) return excelHeaders;
 
-    // fallback: derive from first entry responses
     if (!entries.length) return [];
     return Object.keys(entries[0]?.responses || {});
   }, [entries, excelHeaders]);
@@ -121,7 +216,6 @@ function MyResponses({
 
   const isCellMistake = useCallback(
     (entry, header) => {
-      // We only highlight if we can read excel row
       const rowId = Number(entry?.excelRowId);
       const excelRow = Number.isFinite(rowId) ? excelByRowId?.[rowId] : null;
       if (!excelRow) return false;
@@ -409,21 +503,18 @@ export default function ResultComp() {
     fetchFinalReports();
   }, [fetchFinalReports]);
 
-  /** shuffle excel rows per user */
   const shuffledData = useMemo(() => {
     if (!data.length) return [];
     if (!userId) return data;
     return shuffleWithSeed(data, xfnv1a(String(userId)));
   }, [data, userId]);
 
-  /** limit excel rows by goal */
   const displayData = useMemo(() => {
     if (!shuffledData.length) return [];
     if (Number(goal) > 0) return shuffledData.slice(0, Number(goal));
     return shuffledData;
   }, [shuffledData, goal]);
 
-  /** map excelRowId -> excel row (1-based) */
   const excelByRowId = useMemo(() => {
     const map = {};
     for (let i = 0; i < displayData.length; i++) {

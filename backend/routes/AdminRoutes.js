@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword } = require('../controllers/AdminController');
+const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword,declareReport,undeclareReport } = require('../controllers/AdminController');
 
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -35,6 +35,8 @@ router.put("/form-entry/:entryId", authMiddleware,updateFormEntryResponses);
 
 router.post('/:userId/save-reports',authMiddleware,saveReport);
 router.get('/:userId/get-savedreports',authMiddleware,getSavedReports);
+router.put('/:userId/declare-report',authMiddleware,declareReport);
+router.put('/:userId/undeclare-report',authMiddleware,undeclareReport)
 
 router.get('/:userId/get-finalreports',authMiddleware,getFinalReports);
 

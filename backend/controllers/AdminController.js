@@ -267,15 +267,42 @@ exports.getPackageName = async(req,res) => {
     }
 }
 
-exports.getUsers = async(req,res) => {
-    try{
-        const users = await User.find().select('-__v').populate("packages","name forms").populate("admin","name");
-        res.status(200).json(users);
-    }
-    catch(err){
-        res.status(500).json({message: err.message});
-    }
-}
+exports.getUsers = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select("-__v")
+      .populate("packages", "name forms")
+      .populate("admin", "name")
+      .lean();
+
+    const userIds = users.map((u) => u._id);
+
+    const counts = await FormEntry.aggregate([
+      { $match: { userId: { $in: userIds } } },
+      { $group: { _id: "$userId", totalFormsDone: { $sum: 1 } } },
+    ]);
+
+    const countMap = {};
+    counts.forEach((c) => {
+      countMap[String(c._id)] = c.totalFormsDone;
+    });
+
+    const enriched = users.map((u) => {
+      const goal = Number(u?.packages?.forms) || 0;
+      const done = Number(countMap[String(u._id)]) || 0;
+
+      return {
+        ...u,
+        goal,
+        totalFormsDone: done,
+      };
+    });
+
+    return res.status(200).json(enriched);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
 
 exports.deactivateUser = async(req,res) => {
     try{
@@ -534,5 +561,41 @@ exports.getDraftUsers = async (req, res) => {
     res.json(drafts);
   } catch (err) {
     res.status(500).json({ message: "Error getting draft users" });
+  }
+};
+
+exports.declareReport = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const updated = await User.findByIdAndUpdate(
+      userId,
+      { reportDeclared: true },
+      { new: true }
+    ).select("_id reportDeclared");
+
+    if (!updated) return res.status(404).json({ message: "User not found" });
+
+    return res.json(updated);
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to declare report" });
+  }
+};
+
+exports.undeclareReport = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const updated = await User.findByIdAndUpdate(
+      userId,
+      { reportDeclared: false },
+      { new: true }
+    ).select("_id reportDeclared");
+
+    if (!updated) return res.status(404).json({ message: "User not found" });
+
+    return res.json(updated);
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to undeclare report" });
   }
 };

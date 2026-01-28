@@ -156,7 +156,6 @@ function WorkComp() {
     loadExcel();
   }, []);
 
-  /** ✅ Keep your existing excel row shuffle (per user) */
   const shuffledData = useMemo(() => {
     if (!data.length) return [];
     const userId = localStorage.getItem("userId");
@@ -176,7 +175,6 @@ function WorkComp() {
     return displayData[formNo - 1] || null;
   }, [displayData, formNo]);
 
-  /** ✅ Shuffle INPUT FIELDS each time formNo changes (rest unchanged) */
   useEffect(() => {
     if (!headers.length) return;
     setShuffledHeaders(shuffleArray(headers));
@@ -189,7 +187,11 @@ function WorkComp() {
 
   const handleSubmit = async () => {
     try {
-      // ✅ captcha check FIRST
+      const ok = window.confirm(
+        "Are you sure you want to submit?\n\nYou won’t be able to modify this form after submission."
+      );
+      if (!ok) return;
+
       if (normCaptcha(captchaInput) !== normCaptcha(captchaText)) {
         setCaptchaError("Captcha is incorrect. Please try again.");
         setCaptchaText(makeCaptcha(5));
@@ -246,6 +248,7 @@ function WorkComp() {
       alert(err?.response?.data?.message || "Error saving data");
     }
   };
+
 
   const goalCompleted = goal > 0 && goalStatus >= goal;
 

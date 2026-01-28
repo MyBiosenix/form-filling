@@ -3,103 +3,116 @@ import { MdSubscriptions, MdOutlineTrackChanges } from 'react-icons/md';
 import { FaBullseye, FaChartLine } from 'react-icons/fa';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import {useNavigate} from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 function Dashboard() {
-    const [ packageName, setPackageName ] = useState('');
-    const [ goal, setGoal ] = useState(0);
-    const [ goalStatus, setGoalStatus ] = useState(0);
-    const [myUser, setMyUser] = useState([]);
-    
-        useEffect(()=>{
-            const users = localStorage.getItem('user');
-            if(users){
-                const parsedUser = JSON.parse(users);
-                setMyUser(parsedUser);
-            }
-        },[])
-        if(!myUser) {
-            return <p>Loading Profile...</p>
-        }
-    const token = localStorage.getItem('token')
-    const id = localStorage.getItem('userId');
+  const [packageName, setPackageName] = useState('');
+  const [goal, setGoal] = useState(0);
+  const [goalStatus, setGoalStatus] = useState(0);
 
-    const navigate = useNavigate();
+  // ✅ FIX: should be null/object, not []
+  const [myUser, setMyUser] = useState(null);
 
-    const getStats = async() => {
-        try{
-            const res = await axios.get(`https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,{
-                headers:{
-                    Authorization: `Bearer ${token}`
-                }
-            });
+  const [reportDeclared, setReportDeclared] = useState(false);
 
-            setPackageName(res.data.packageName);
-            setGoal(res.data.goal);
-            setGoalStatus(res.data.totalFormsDone);
-        }
-        catch(err){
-            if(err.response && err.response.data && err.response.data.message){
-                alert(err.response.data.message);
-            }
-            else{
-                alert("Error Getting Dashboard Stats");
-            }
-        }
+  const token = localStorage.getItem('token');
+  const id = localStorage.getItem('userId');
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const users = localStorage.getItem('user');
+    if (users) {
+      const parsedUser = JSON.parse(users);
+      setMyUser(parsedUser);
+    } else {
+      setMyUser(null);
     }
+  }, []);
 
-    useEffect(()=>{
-        getStats();
-    },[]);
+  const getStats = async () => {
+    try {
+      const res = await axios.get(
+        `https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    
+      setPackageName(res.data.packageName);
+      setGoal(res.data.goal);
+      setGoalStatus(res.data.totalFormsDone);
+
+      // ✅ ensure boolean
+      setReportDeclared(!!res.data.reportDeclared);
+    } catch (err) {
+      if (err.response?.data?.message) alert(err.response.data.message);
+      else alert("Error Getting Dashboard Stats");
+    }
+  };
+
+  useEffect(() => {
+    if (id && token) getStats();
+  }, [id, token]);
+
+  // ✅ NEW: click handler
+  const handleReportClick = () => {
+    if (!reportDeclared) {
+      alert("Reports not declared yet");
+      return;
+    }
+    navigate('/result');
+  };
+
+  if (!myUser) {
+    return <p>Loading Profile...</p>;
+  }
+
   return (
     <div className='mydassh'>
-        <h3>Dashboard</h3>
-        <div className='boxes'>
-            <div className='box'>
-                <MdSubscriptions className='icn'/>
-                <div className='inbox'>
-                    <h5>Plan</h5>
-                    <h4>{packageName}</h4>
-                    <p className='forms'>Data Segregation</p>
-                </div>
-            </div>
-
-            <div className='box'>
-                <FaBullseye className='icn'/>
-                <div className='inbox'>
-                    <h5>Goal</h5>
-                    <h4>{goal}</h4>
-                    <p className='forms'>Forms</p>
-                </div>
-            </div>
-
-            <div className='box' onClick={() => navigate('/entries')}>
-                <MdOutlineTrackChanges className='icn'/>
-                <div className='inbox'>
-                    <h5>Goal Status</h5>
-                    <h4>{goalStatus}</h4>
-                    <p className='forms'>Forms</p>
-                </div>
-            </div>
-
-            <div className='box' onClick={()=>navigate('/result')}>
-                <FaChartLine className='icn'/>
-                <div className='inbox'>
-                    <h5>Report</h5>
-                    <h4>Click to See</h4>
-                    <p className='forms'>Your Reports</p>
-                </div>
-            </div>
+      <h3>Dashboard</h3>
+      <div className='boxes'>
+        <div className='box'>
+          <MdSubscriptions className='icn'/>
+          <div className='inbox'>
+            <h5>Plan</h5>
+            <h4>{packageName}</h4>
+            <p className='forms'>Data Segregation</p>
+          </div>
         </div>
-        <p style={{textAlign:'center'}}><strong>Subscription Validity:</strong>{myUser.expiry ? 
-                    new Date(myUser.expiry).toLocaleDateString()
-                    : '-'
-                  }
-            </p>
+
+        <div className='box'>
+          <FaBullseye className='icn'/>
+          <div className='inbox'>
+            <h5>Goal</h5>
+            <h4>{goal}</h4>
+            <p className='forms'>Forms</p>
+          </div>
+        </div>
+
+        <div className='box' onClick={() => navigate('/entries')}>
+          <MdOutlineTrackChanges className='icn'/>
+          <div className='inbox'>
+            <h5>Goal Status</h5>
+            <h4>{goalStatus}</h4>
+            <p className='forms'>Forms</p>
+          </div>
+        </div>
+
+        <div className='box' onClick={handleReportClick}>
+          <FaChartLine className='icn'/>
+          <div className='inbox'>
+            <h5>Report</h5>
+            <h4>{reportDeclared ? "Click to See" : "Not Declared"}</h4>
+            <p className='forms'>Your Reports</p>
+          </div>
+        </div>
+      </div>
+
+      <p style={{ textAlign: 'center' }}>
+        <strong>Subscription Validity:</strong>{' '}
+        {myUser.expiry ? new Date(myUser.expiry).toLocaleDateString() : '-'}
+      </p>
     </div>
-  )
+  );
 }
 
-export default Dashboard
+export default Dashboard;
