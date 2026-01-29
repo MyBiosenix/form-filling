@@ -58,7 +58,7 @@ function Header() {
 
         <div className={`dropdown ${showDropdown ? 'showDropdown' : ''}`}>
             <p>Profile</p>
-            <p>Change Password</p>
+            <p onClick={() => navigate('/admin/change-password')}>Change Password</p>
         </div>
     </div>
   )

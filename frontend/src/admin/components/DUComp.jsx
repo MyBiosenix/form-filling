@@ -1,30 +1,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "../styles/ma.css";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function DUComp() {
-  const navigate = useNavigate();
-
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 10;
-
   const token = localStorage.getItem("token");
 
   const getInActiveUsers = async () => {
     try {
-      const res = await axios.get(
-        "https://api.freelancing-projects.com/api/admin/get-inactiveusers",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      setUsers(res.data);
+      const res = await axios.get("https://api.freelancing-projects.com/api/admin/get-inactiveusers", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       if (err.response?.data?.message) alert(err.response.data.message);
       else alert("Error getting Inactive Users");
@@ -33,6 +27,7 @@ function DUComp() {
 
   useEffect(() => {
     getInActiveUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Search filter ---
@@ -44,13 +39,52 @@ function DUComp() {
       const name = String(u.name || "").toLowerCase();
       const email = String(u.email || "").toLowerCase();
       const status = u.status ? "active" : "inactive";
-      return (
-        name.includes(term) ||
-        email.includes(term) ||
-        status.includes(term)
-      );
+      return name.includes(term) || email.includes(term) || status.includes(term);
     });
   }, [users, searchTerm]);
+
+  // --- Export Excel (exports filtered users) ---
+  const exportToExcel = () => {
+    if (!filteredUsers.length) return alert("No users to export");
+
+    const data = filteredUsers.map((u, i) => ({
+      "Sr.No.": i + 1,
+      Name: u.name || "",
+      "Email Id": u.email || "",
+      Status: u.status ? "Active" : "Inactive",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Deactivated Users");
+    XLSX.writeFile(wb, "deactivated_users.xlsx");
+  };
+
+  // --- Export PDF (exports filtered users) ---
+  const exportToPDF = () => {
+    if (!filteredUsers.length) return alert("No users to export");
+
+    const doc = new jsPDF("p", "pt", "a4");
+    doc.text("Deactivated Users List", 40, 30);
+
+    const head = [["Sr.No.", "Name", "Email Id", "Status"]];
+    const body = filteredUsers.map((u, i) => [
+      i + 1,
+      u.name || "",
+      u.email || "",
+      u.status ? "Active" : "Inactive",
+    ]);
+
+    autoTable(doc, {
+      head,
+      body,
+      startY: 50,
+      styles: { fontSize: 10 },
+      headStyles: { fontSize: 10 },
+    });
+
+    doc.save("deactivated_users.pdf");
+  };
 
   // --- Pagination ---
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
@@ -74,8 +108,12 @@ function DUComp() {
 
         <div className="go">
           <div className="mygo">
-            <p style={{ cursor: "pointer" }}>Excel</p>
-            <p style={{ cursor: "pointer" }}>PDF</p>
+            <p style={{ cursor: "pointer" }} onClick={exportToExcel}>
+              Excel
+            </p>
+            <p style={{ cursor: "pointer" }} onClick={exportToPDF}>
+              PDF
+            </p>
           </div>
 
           <input
@@ -85,7 +123,7 @@ function DUComp() {
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
-              setCurrentPage(1); // ✅ reset page after search
+              setCurrentPage(1);
             }}
           />
         </div>
@@ -104,19 +142,14 @@ function DUComp() {
             {currentItems.length > 0 ? (
               currentItems.map((user, index) => (
                 <tr key={user._id}>
-                  {/* ✅ correct Sr.No across pages */}
                   <td className="mytd">{indexOfFirstItem + index + 1}</td>
                   <td className="mytd">{user.name}</td>
                   <td className="mytd">{user.email}</td>
                   <td className="mytd">
                     {user.status ? (
-                      <span style={{ color: "green", fontWeight: "bold" }}>
-                        Active
-                      </span>
+                      <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
                     ) : (
-                      <span style={{ color: "red", fontWeight: "bold" }}>
-                        Inactive
-                      </span>
+                      <span style={{ color: "red", fontWeight: "bold" }}>Inactive</span>
                     )}
                   </td>
                 </tr>
@@ -131,32 +164,22 @@ function DUComp() {
           </tbody>
         </table>
 
-        {/* ✅ Pagination UI */}
         {filteredUsers.length > 0 && (
           <div className="pagination-container">
             <div className="pagination">
               <button onClick={() => goToPage(1)} disabled={currentPage === 1}>
                 «
               </button>
-              <button
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
+              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
                 ‹
               </button>
               <span>
                 Page {currentPage} of {totalPages}
               </span>
-              <button
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
+              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
                 ›
               </button>
-              <button
-                onClick={() => goToPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
+              <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages}>
                 »
               </button>
             </div>

@@ -40,26 +40,32 @@ exports.login = async(req,res) => {
     }
 }
 
-exports.ChangePassword = async(req,res) => {
-  try{
-    const {id} = req.params;
-    const {password, newpassword} = req.body;
-    const admin = await Admin.findByIdAndUpdate(id).select('password');
-    if(!admin){
-      return res.status(400).json({message:'Admin Not Found'})
-    }
-    if(password !== admin.password){
-      return res.status(400).json({message:'Please Enter Correct Previous Password'});
-    }
-    admin.password = newpassword;
+exports.ChangePassword = async (req, res) => {
+  try {
+    const id = req.userId; // ✅ from token (authMiddleware)
+    const { password, newpassword } = req.body;
 
+    const admin = await Admin.findById(id).select("password");
+    if (!admin) {
+      return res.status(400).json({ message: "Admin Not Found" });
+    }
+
+    if (password !== admin.password) {
+      return res
+        .status(400)
+        .json({ message: "Please Enter Correct Previous Password" });
+    }
+
+    admin.password = newpassword;
     await admin.save();
-    res.status(200).json({message:'Password Updated Succesfully'});
+
+    res.status(200).json({ message: "Password Updated Successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
-  catch(err){
-    res.status(500).json({message:err.message});
-  }
-}
+};
+
+
 
 exports.createadmin = async(req,res) => {
     try{

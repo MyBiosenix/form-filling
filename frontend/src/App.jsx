@@ -20,6 +20,7 @@ import AU from './admin/pages/AU'
 import DU from './admin/pages/DU'
 import Report from './admin/pages/Report'
 import Drafts from './admin/pages/Drafts'
+import ChangePassword from './admin/pages/ChangePassword'
 
 import SLogin from './subadmin/pages/SLogin'
 import SHome from './subadmin/pages/SHome'
@@ -42,6 +43,7 @@ function App() {
 
         <Route path='/admin/login' element={<Login/>}/>
         <Route path='/admin/dashboard' element={<AdminHome/>}/>
+        <Route path='/admin/change-password' element={<ChangePassword/>}/>
         <Route path='/admin/manage-admin' element={<MA/>}/>
         <Route path='/admin/manage-admin/add-admin' element={<AddAdmin/>}/>
         <Route path='/admin/manage-user' element={<MU/>}/>

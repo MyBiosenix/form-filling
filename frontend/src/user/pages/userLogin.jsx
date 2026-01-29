@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../styles/login.css"
+import '../styles/ulogin.css'
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
@@ -113,12 +113,12 @@ function UserLogin() {
   }
 
   return (
-    <div className="mylogin1">
-      <div className="login1">
+    <div className="mylogin11">
+      <div className="login11">
         <h2>User Login</h2>
 
-        <div className="myinputs1">
-          <div className="input1">
+        <div className="myinputs11">
+          <div className="input11">
             <label>Email Id</label>
             <input
               type="text"
@@ -129,10 +129,10 @@ function UserLogin() {
             {emailError && <p className="error">{emailError}</p>}
           </div>
 
-          <div className="input1 password-field">
+          <div className="input11 password-field">
             <label>Password</label>
 
-            <div className="password-input-wrapper">
+            <div className="password-input-wrapper1">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter Password"
@@ -141,7 +141,7 @@ function UserLogin() {
               />
 
               <span
-                className="toggle-password"
+                className="toggle-password1"
                 onClick={() => setShowPassword(!showPassword)}
                 role="button"
                 tabIndex={0}

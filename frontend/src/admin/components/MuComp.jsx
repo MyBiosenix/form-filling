@@ -3,6 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import "../styles/ma.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 
 function MuComp() {
   const navigate = useNavigate();
@@ -11,8 +15,7 @@ function MuComp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ✅ expiry sort like your old project
-  const [sortField, setSortField] = useState(null); // "expiry"
+  const [sortField, setSortField] = useState(null); 
   const [sortOrder, setSortOrder] = useState("asc");
 
   const itemsPerPage = 10;
@@ -100,6 +103,69 @@ function MuComp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const exportToExcel = () => {
+  if (!sortedUsers.length) return alert("No users to export");
+
+  const data = sortedUsers.map((u, i) => ({
+    "Sr.No.": i + 1,
+    Name: u.name || "",
+    Package: u.packages?.name || "No Package",
+    Admin: u.admin?.name || "-",
+    Email: u.email || "",
+    Password: u.password || "",
+    Status: u.status ? "Active" : "Inactive",
+    Expiry: u.expiry ? new Date(u.expiry).toLocaleDateString() : "-",
+    "Goal Status": u.goal ? `${u.totalFormsDone || 0}/${u.goal}` : "-",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Users");
+  XLSX.writeFile(wb, "users_list.xlsx");
+};
+
+const exportToPDF = () => {
+  if (!sortedUsers.length) return alert("No users to export");
+
+  const doc = new jsPDF("l", "pt", "a4"); // landscape
+  doc.text("Users List", 40, 30);
+
+  const head = [[
+    "Sr.No.",
+    "Name",
+    "Package",
+    "Admin",
+    "Email",
+    "Password",
+    "Status",
+    "Expiry",
+    "Goal Status",
+  ]];
+
+  const body = sortedUsers.map((u, i) => ([
+    i + 1,
+    u.name || "",
+    u.packages?.name || "No Package",
+    u.admin?.name || "-",
+    u.email || "",
+    u.password || "",
+    u.status ? "Active" : "Inactive",
+    u.expiry ? new Date(u.expiry).toLocaleDateString() : "-",
+    u.goal ? `${u.totalFormsDone || 0}/${u.goal}` : "-",
+  ]));
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: 50,
+    styles: { fontSize: 8 },
+    headStyles: { fontSize: 8 },
+  });
+
+  doc.save("users_list.pdf");
+};
+
+
   const normalize = (v) => String(v ?? "").toLowerCase().trim();
 
   const expirySearchString = (expiry) => {
@@ -165,7 +231,6 @@ function MuComp() {
     return copy;
   }, [filteredUsers, sortField, sortOrder]);
 
-  // ✅ Pagination on sorted list
   const totalPages = Math.ceil(sortedUsers.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -175,7 +240,6 @@ function MuComp() {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 
-  // ✅ click handler for expiry sort toggle
   const toggleExpirySort = () => {
     setSortField("expiry");
     setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -203,14 +267,15 @@ function MuComp() {
 
         <div className="go">
           <div className="mygo">
-            <p style={{ cursor: "pointer" }}>Excel</p>
-            <p style={{ cursor: "pointer" }}>PDF</p>
+            <p style={{ cursor: "pointer" }} onClick={exportToExcel}>Excel</p>
+            <p style={{ cursor: "pointer" }} onClick={exportToPDF}>PDF</p>
           </div>
+
   
           <p
             style={{
               cursor: "pointer",
-              background: "#2575fc",
+              background: "green",
               color: "white",
               padding: "10px 20px",
               borderRadius: "10px",

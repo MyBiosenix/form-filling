@@ -6,7 +6,7 @@ const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackag
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/login',login);
-router.put('/:id/change-password',authMiddleware,ChangePassword);
+router.put('/change-password',authMiddleware,ChangePassword);
 
 router.post('/create-admin',authMiddleware,createadmin);
 router.get('/get-admin',authMiddleware,getAdmin);

@@ -10,10 +10,10 @@ function Dashboard() {
   const [goal, setGoal] = useState(0);
   const [goalStatus, setGoalStatus] = useState(0);
 
-  // ✅ FIX: should be null/object, not []
   const [myUser, setMyUser] = useState(null);
-
   const [reportDeclared, setReportDeclared] = useState(false);
+
+  const [timeLeft, setTimeLeft] = useState("");
 
   const token = localStorage.getItem('token');
   const id = localStorage.getItem('userId');
@@ -40,8 +40,6 @@ function Dashboard() {
       setPackageName(res.data.packageName);
       setGoal(res.data.goal);
       setGoalStatus(res.data.totalFormsDone);
-
-      // ✅ ensure boolean
       setReportDeclared(!!res.data.reportDeclared);
     } catch (err) {
       if (err.response?.data?.message) alert(err.response.data.message);
@@ -53,7 +51,37 @@ function Dashboard() {
     if (id && token) getStats();
   }, [id, token]);
 
-  // ✅ NEW: click handler
+  useEffect(() => {
+    if (!myUser?.expiry) return;
+
+    const pad = (n) => String(n).padStart(2, "0");
+
+    const compute = () => {
+      const expiry = new Date(myUser.expiry);
+      expiry.setHours(23, 59, 59, 999);
+
+      const now = new Date();
+      const diff = expiry.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft("Expired");
+        return;
+      }
+
+      const totalSeconds = Math.floor(diff / 1000);
+      const days = Math.floor(totalSeconds / (3600 * 24));
+      const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      setTimeLeft(`${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+    };
+
+    compute();
+    const interval = setInterval(compute, 1000);
+    return () => clearInterval(interval);
+  }, [myUser?.expiry]);
+
   const handleReportClick = () => {
     if (!reportDeclared) {
       alert("Reports not declared yet");
@@ -107,9 +135,13 @@ function Dashboard() {
         </div>
       </div>
 
-      <p style={{ textAlign: 'center' }}>
+      <p style={{ textAlign: 'center', marginBottom: '6px' }}>
         <strong>Subscription Validity:</strong>{' '}
         {myUser.expiry ? new Date(myUser.expiry).toLocaleDateString() : '-'}
+      </p>
+
+      <p style={{ textAlign: 'center', fontWeight: 700 }}>
+        Time Left: {myUser.expiry ? timeLeft : "-"}
       </p>
     </div>
   );
