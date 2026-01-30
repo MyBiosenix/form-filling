@@ -4,7 +4,6 @@ import * as XLSX from "xlsx-js-style";
 import ExcelTable from "../../user/components/ExcelTable";
 import axios from "axios";
 
-/** ------------------- seeded shuffle helpers ------------------- */
 function xfnv1a(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -31,7 +30,6 @@ function shuffleWithSeed(arr, seed) {
   return a;
 }
 
-/** ------------------- compare helpers (for cell highlight) ------------------- */
 const norm = (v) =>
   String(v ?? "")
     .trim()

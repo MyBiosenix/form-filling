@@ -98,7 +98,7 @@ function Dashboard() {
     <div className='mydassh'>
       <h3>Dashboard</h3>
       <div className='boxes'>
-        <div className='box'>
+        <div className='box' onClick={() => navigate('/profile')}>
           <MdSubscriptions className='icn'/>
           <div className='inbox'>
             <h5>Plan</h5>
@@ -107,7 +107,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className='box'>
+        <div className='box' onClick={() => navigate('/work')}>
           <FaBullseye className='icn'/>
           <div className='inbox'>
             <h5>Goal</h5>
