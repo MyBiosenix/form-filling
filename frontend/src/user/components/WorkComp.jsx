@@ -31,13 +31,15 @@ function shuffleWithSeed(arr, seed) {
 }
 
 function makeCaptcha(len = 5) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // removed O/0/I/1
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&"; // removed O/0/I/1
   let out = "";
   for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
+
+
 function normCaptcha(v) {
-  return String(v || "").trim().toUpperCase();
+  return String(v || "").trim();
 }
 
 function shuffleArray(arr) {
@@ -63,10 +65,16 @@ function WorkComp() {
   const [captchaText, setCaptchaText] = useState(() => makeCaptcha(5));
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaError, setCaptchaError] = useState("");
+
   const refreshCaptcha = useCallback(() => {
     setCaptchaText(makeCaptcha(5));
     setCaptchaInput("");
     setCaptchaError("");
+  }, []);
+
+  const refreshCaptchaOnly = useCallback(() => {
+    setCaptchaText(makeCaptcha(5));
+    setCaptchaInput("");
   }, []);
 
   const [shuffledHeaders, setShuffledHeaders] = useState([]);
@@ -187,19 +195,21 @@ function WorkComp() {
 
   const handleSubmit = async () => {
     try {
+      // 1) captcha check FIRST (before confirm)
+      if (normCaptcha(captchaInput) !== normCaptcha(captchaText)) {
+        setCaptchaError("Captcha is incorrect. Please try again.");
+        refreshCaptchaOnly(); // ✅ new captcha + clear input, error stays
+        return;
+      }
+      setCaptchaError("");
+
+      // 2) confirm only if captcha is correct
       const ok = window.confirm(
         "Are you sure you want to submit?\n\nYou won’t be able to modify this form after submission."
       );
       if (!ok) return;
 
-      if (normCaptcha(captchaInput) !== normCaptcha(captchaText)) {
-        setCaptchaError("Captcha is incorrect. Please try again.");
-        setCaptchaText(makeCaptcha(5));
-        setCaptchaInput("");
-        return;
-      }
-      setCaptchaError("");
-
+      // 3) your existing validations
       const token = localStorage.getItem("token");
       if (!token) {
         alert("Please login again.");
@@ -222,6 +232,7 @@ function WorkComp() {
         return;
       }
 
+      // 4) API call
       const excelRowId = formNo;
 
       const res = await axios.post(
@@ -237,17 +248,19 @@ function WorkComp() {
 
       alert(`Saved Form No. ${res.data?.formNo}`);
 
+      // 5) reset form + counters
       setFormData(Object.fromEntries(headers.map((h) => [h, ""])));
-
       setFormNo((prev) => prev + 1);
       setGoalStatus((prev) => prev + 1);
 
+      // 6) refresh captcha fully after success
       refreshCaptcha();
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || "Error saving data");
     }
   };
+
 
 
   const goalCompleted = goal > 0 && goalStatus >= goal;
