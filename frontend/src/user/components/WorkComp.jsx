@@ -31,17 +31,14 @@ function shuffleWithSeed(arr, seed) {
 }
 
 function makeCaptcha(len = 5) {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&"; // removed O/0/I/1
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&";
   let out = "";
   for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
-
-
 function normCaptcha(v) {
   return String(v || "").trim();
 }
-
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -62,6 +59,10 @@ function WorkComp() {
   const [goalStatus, setGoalStatus] = useState(0);
   const [formNo, setFormNo] = useState(1);
 
+  // ✅ expiry lock (from localStorage.user like your Dashboard)
+  const [expiry, setExpiry] = useState(null);
+  const [isExpired, setIsExpired] = useState(false);
+
   const [captchaText, setCaptchaText] = useState(() => makeCaptcha(5));
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaError, setCaptchaError] = useState("");
@@ -79,6 +80,41 @@ function WorkComp() {
 
   const [shuffledHeaders, setShuffledHeaders] = useState([]);
 
+  // ✅ read expiry safely from localStorage.user
+  useEffect(() => {
+    const users = localStorage.getItem("user");
+    if (!users) {
+      setExpiry(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(users);
+      setExpiry(parsed?.expiry || null);
+    } catch (e) {
+      // if localStorage.user is corrupted, do not crash
+      setExpiry(null);
+    }
+  }, []);
+
+  // ✅ compute expired (valid till end of expiry day)
+  useEffect(() => {
+    if (!expiry) {
+      setIsExpired(false);
+      return;
+    }
+
+    const compute = () => {
+      const ex = new Date(expiry);
+      ex.setHours(23, 59, 59, 999);
+      setIsExpired(ex.getTime() <= Date.now());
+    };
+
+    compute();
+    const t = setInterval(compute, 1000);
+    return () => clearInterval(t);
+  }, [expiry]);
+
+  // ✅ keep your original userId logic (NO /me call added)
   useEffect(() => {
     const ensureUserId = async () => {
       const token = localStorage.getItem("token");
@@ -195,10 +231,16 @@ function WorkComp() {
 
   const handleSubmit = async () => {
     try {
-      // 1) captcha check FIRST (before confirm)
+      // ✅ lock submit when expired
+      if (isExpired) {
+        alert("Your plan has expired. Please contact admin to renew.");
+        return;
+      }
+
+      // 1) captcha check FIRST
       if (normCaptcha(captchaInput) !== normCaptcha(captchaText)) {
         setCaptchaError("Captcha is incorrect. Please try again.");
-        refreshCaptchaOnly(); // ✅ new captcha + clear input, error stays
+        refreshCaptchaOnly();
         return;
       }
       setCaptchaError("");
@@ -209,7 +251,6 @@ function WorkComp() {
       );
       if (!ok) return;
 
-      // 3) your existing validations
       const token = localStorage.getItem("token");
       if (!token) {
         alert("Please login again.");
@@ -232,7 +273,6 @@ function WorkComp() {
         return;
       }
 
-      // 4) API call
       const excelRowId = formNo;
 
       const res = await axios.post(
@@ -248,12 +288,10 @@ function WorkComp() {
 
       alert(`Saved Form No. ${res.data?.formNo}`);
 
-      // 5) reset form + counters
       setFormData(Object.fromEntries(headers.map((h) => [h, ""])));
       setFormNo((prev) => prev + 1);
       setGoalStatus((prev) => prev + 1);
 
-      // 6) refresh captcha fully after success
       refreshCaptcha();
     } catch (err) {
       console.error(err);
@@ -261,9 +299,8 @@ function WorkComp() {
     }
   };
 
-
-
   const goalCompleted = goal > 0 && goalStatus >= goal;
+  const lockWork = isExpired || goalCompleted;
 
   return (
     <div className="wrk">
@@ -285,6 +322,24 @@ function WorkComp() {
             </span>
           ) : null}
         </h2>
+
+        {/* ✅ Plan Expired banner */}
+        {isExpired ? (
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              background: "#fff1f2",
+              border: "1px solid #fecdd3",
+              color: "#9f1239",
+              fontWeight: 800,
+              marginBottom: 12,
+              textAlign: "center",
+            }}
+          >
+            ⛔ Your Plan has Expired. You can’t submit forms until admin renews your validity.
+          </div>
+        ) : null}
 
         <div className="form-group" style={{ marginBottom: "16px" }}>
           <label>Sr No. (Auto)</label>
@@ -316,6 +371,7 @@ function WorkComp() {
                   value={formData[h] || ""}
                   onChange={handleChange}
                   placeholder="Your answer"
+                  disabled={isExpired}
                 />
               </div>
             ))}
@@ -323,14 +379,7 @@ function WorkComp() {
             <div className="form-group" style={{ gridColumn: "1 / -1" }}>
               <label>Captcha</label>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <div
                   style={{
                     position: "relative",
@@ -345,6 +394,7 @@ function WorkComp() {
                     display: "flex",
                     gap: 4,
                     overflow: "hidden",
+                    opacity: isExpired ? 0.6 : 1,
                   }}
                 >
                   <div
@@ -358,14 +408,11 @@ function WorkComp() {
                       transform: "rotate(-8deg)",
                     }}
                   />
-
                   {captchaText.split("").map((ch, i) => (
                     <span
                       key={i}
                       style={{
-                        transform: `rotate(${(Math.random() * 20 - 10).toFixed(
-                          1
-                        )}deg)`,
+                        transform: `rotate(${(Math.random() * 20 - 10).toFixed(1)}deg)`,
                         color: "#111827",
                       }}
                     >
@@ -378,15 +425,16 @@ function WorkComp() {
                   type="button"
                   onClick={refreshCaptcha}
                   title="Refresh Captcha"
+                  disabled={isExpired}
                   style={{
                     padding: "10px 12px",
                     borderRadius: 8,
                     border: "1px solid #d1d5db",
                     background: "white",
-                    color: "black",
-                    cursor: "pointer",
+                    cursor: isExpired ? "not-allowed" : "pointer",
                     fontSize: 18,
                     fontWeight: 700,
+                    opacity: isExpired ? 0.6 : 1,
                   }}
                 >
                   ↻
@@ -395,6 +443,7 @@ function WorkComp() {
                 <input
                   type="text"
                   value={captchaInput}
+                  disabled={isExpired}
                   onChange={(e) => {
                     setCaptchaInput(e.target.value);
                     setCaptchaError("");
@@ -411,12 +460,8 @@ function WorkComp() {
               ) : null}
             </div>
 
-            <button
-              className="frmbtn"
-              onClick={handleSubmit}
-              disabled={!goal || goalCompleted}
-            >
-              Submit (Form {formNo})
+            <button className="frmbtn" onClick={handleSubmit} disabled={!goal || lockWork}>
+              {isExpired ? "Plan Expired" : `Submit (Form ${formNo})`}
             </button>
           </div>
         )}
@@ -431,15 +476,13 @@ function WorkComp() {
             borderTop: "1px solid #e5e7eb",
             background: "#f6f2ff",
             borderRadius: 10,
-            
           }}
         >
           <div className="gf">
-            <span style={{ fontWeight:300, fontSize:25 }}>
-              <span style={{fontWeight:500}}>Google</span> Forms
+            <span style={{ fontWeight: 300, fontSize: 25 }}>
+              <span style={{ fontWeight: 500 }}>Google</span> Forms
             </span>
           </div>
-
         </div>
       </div>
     </div>
