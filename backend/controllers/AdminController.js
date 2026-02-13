@@ -197,27 +197,42 @@ exports.deletePackage = async(req,res) => {
     }
 }
 
-exports.createUser = async(req,res) => {
-    try{
-        const {name,email,mobile,admin,packages,price,paymentoptions,expiry} = req.body;
-        const password = getRandomPassword();
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, mobile, admin, packages, price, paymentoptions, expiry } = req.body;
 
-        const existingUser = await User.findOne({email});
-        if(existingUser){
-            return res.status(400).json({message:'User Already Exists'});
-        }
+    if (!expiry) return res.status(400).json({ message: "Expiry is required" });
 
-        const newuser = await User.create({
-            name,email,password,mobile,admin,packages,price,paymentoptions,expiry
-        })
-        res.status(200).json({
-            message:'User Created Succesfully',
-        });
+    const expiryDate = new Date(expiry);
+    if (isNaN(expiryDate.getTime())) {
+      return res.status(400).json({ message: "Invalid expiry date/time" });
     }
-    catch(err){
-        res.status(500).json({message:err.message})
+
+    const password = getRandomPassword();
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User Already Exists" });
     }
-}
+
+    await User.create({
+      name,
+      email,
+      password,
+      mobile,
+      admin,
+      packages,
+      price,
+      paymentoptions,
+      expiry: expiryDate, // ✅ stores date+time
+    });
+
+    res.status(200).json({ message: "User Created Successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 function getRandomPassword (length=7){
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*()'
     let password = '';
@@ -227,31 +242,47 @@ function getRandomPassword (length=7){
     return password;
 }
 
-exports.editUser = async(req,res) => {
-    try{
-        const {id} = req.params;
-        const {name,email,mobile,admin,packages,price,paymentoptions,expiry} = req.body;
+exports.editUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, mobile, admin, packages, price, paymentoptions, expiry } = req.body;
 
-        const user = await User.findById(id);
-        if(!user){
-            return res.status(400).json({message:'User Not Found'});
-        }
-        user.name = name;
-        user.email = email;
-        user.mobile = mobile;
-        user.admin = admin;
-        user.packages = packages;
-        user.price = price;
-        user.paymentoptions = paymentoptions;
-        user.expiry = expiry;
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(400).json({ message: "User Not Found" });
+    }
 
-        await user.save();
-        res.status(200).json({message:'User Updated Succesfully'});
+    // ✅ validate + convert expiry (date + time)
+    if (!expiry) return res.status(400).json({ message: "Expiry is required" });
+
+    const expiryDate = new Date(expiry);
+    if (isNaN(expiryDate.getTime())) {
+      return res.status(400).json({ message: "Invalid expiry date/time" });
     }
-    catch(err){
-        res.status(500).json({message:err.message})
+
+    // ✅ (optional but recommended) prevent duplicate email when changing email
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser && String(existingUser._id) !== String(user._id)) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
     }
-}
+
+    user.name = name;
+    user.email = email;
+    user.mobile = mobile;
+    user.admin = admin;
+    user.packages = packages;
+    user.price = price;
+    user.paymentoptions = paymentoptions;
+    user.expiry = expiryDate; // ✅ store Date object
+
+    await user.save();
+    res.status(200).json({ message: "User Updated Successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 exports.getAdminName = async(req,res) => {
     try{
@@ -383,25 +414,241 @@ exports.getInActiveUsers = async(req,res) => {
         res.status(500).json({message:err.message})
     }
 }
+exports.getExpiringSoonUsers = async (req, res) => {
+  try {
+    const days = Number(req.query.days || 4);
 
-exports.getdashStats = async(req,res) => {
-    try{
-        const totalAdmins = await Admin.countDocuments();
-        const totalUsers = await User.countDocuments();
-        const totalActiveUsers = await User.countDocuments({status:true});
-        const totalInActiveUsers = await User.countDocuments({status:false});
+    const now = new Date();
+    const till = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
-        res.status(200).json({
-            totalAdmins,
-            totalUsers,
-            totalActiveUsers,
-            totalInActiveUsers
-        })
-    }
-    catch(err){
-        res.status(500).json({message: err.message});
-    }
-}
+    const users = await User.find({
+      status: true,
+      isDraft: false,
+      expiry: { $gte: now, $lte: till },
+    })
+      .select("-__v")
+      .populate("packages", "name forms price");
+
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+exports.getTargetsAchievedUsers = async (req, res) => {
+  try {
+    const behindLimit = Number(req.query.behind || 200);
+
+    const users = await User.aggregate([
+      {
+        $match: {
+          status: true,
+          isDraft: false,
+          packages: { $exists: true, $ne: null },
+        },
+      },
+
+      // ✅ package lookup (Packagee)
+      {
+        $lookup: {
+          from: "packagees",
+          localField: "packages",
+          foreignField: "_id",
+          as: "pkg",
+        },
+      },
+      { $unwind: "$pkg" },
+
+      // ✅ count completed forms for each user from FormEntry
+      {
+        $lookup: {
+          from: "formentries",
+          let: { uid: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
+
+            // Option 1: count docs (most common)
+            { $count: "completed" },
+
+            // Option 2 (if duplicates possible): unique excelRowId
+            // { $group: { _id: "$excelRowId" } },
+            // { $count: "completed" },
+          ],
+          as: "progress",
+        },
+      },
+
+      // ✅ compute goal + done + remaining
+      {
+        $addFields: {
+          totalFormsDone: {
+            $ifNull: [{ $arrayElemAt: ["$progress.completed", 0] }, 0],
+          },
+          goal: "$pkg.forms",
+        },
+      },
+      {
+        $addFields: {
+          remaining: { $subtract: ["$goal", "$totalFormsDone"] },
+        },
+      },
+
+      // ✅ include achieved + near achieved (remaining <= 200 includes remaining <= 0)
+      { $match: { remaining: { $lte: behindLimit } } },
+
+      // ✅ admin lookup (so UI can do admin?.name)
+      {
+        $lookup: {
+          from: "admins", // default mongoose collection for Admin
+          localField: "admin",
+          foreignField: "_id",
+          as: "adminDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$adminDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ IMPORTANT: Use ONLY INCLUSION in $project (no password:0 etc)
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          password: 1,
+          mobile: 1,
+          status: 1,
+          expiry: 1,
+          isDraft: 1,
+          reportDeclared: 1,
+          price: 1,
+          paymentoptions: 1,
+          lastLoginSession: 1,
+
+          // fields your UI uses
+          goal: 1,
+          totalFormsDone: 1,
+          remaining: 1,
+
+          // make packages become an object {name, forms, ...}
+          packages: {
+            _id: "$pkg._id",
+            name: "$pkg.name",
+            forms: "$pkg.forms",
+            price: "$pkg.price",
+          },
+
+          // make admin become an object {name}
+          admin: {
+            _id: "$adminDoc._id",
+            name: "$adminDoc.name",
+          },
+        },
+      },
+
+      { $sort: { remaining: 1 } },
+    ]);
+
+    return res.status(200).json(users);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+
+exports.getdashStats = async (req, res) => {
+  try {
+    const now = new Date();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    const expiringDays = 4;
+    const expiringTill = new Date(now.getTime() + expiringDays * dayMs);
+
+    const behindLimit = 200;
+
+    // ✅ base stats + expiring soon
+    const [
+      totalAdmins,
+      totalUsers,
+      totalActiveUsers,
+      totalInActiveUsers,
+      totalExpiringSoon,
+    ] = await Promise.all([
+      Admin.countDocuments(),
+      User.countDocuments(),
+      User.countDocuments({ status: true }),
+      User.countDocuments({ status: false }),
+      User.countDocuments({
+        status: true,
+        isDraft: false,
+        expiry: { $gte: now, $lte: expiringTill },
+      }),
+    ]);
+
+    // ✅ targets achieved = remaining <= 200 (includes achieved: remaining <= 0)
+    const targetsAgg = await User.aggregate([
+      {
+        $match: {
+          status: true,
+          isDraft: false,
+          packages: { $exists: true, $ne: null },
+        },
+      },
+
+      {
+        $lookup: {
+          from: "packagees",
+          localField: "packages",
+          foreignField: "_id",
+          as: "pkg",
+        },
+      },
+      { $unwind: "$pkg" },
+
+      {
+        $lookup: {
+          from: "formentries",
+          let: { uid: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
+
+            { $count: "completed" },
+
+          ],
+          as: "progress",
+        },
+      },
+
+      {
+        $addFields: {
+          completed: { $ifNull: [{ $arrayElemAt: ["$progress.completed", 0] }, 0] },
+          target: "$pkg.forms",
+        },
+      },
+      { $addFields: { remaining: { $subtract: ["$target", "$completed"] } } },
+
+      { $match: { remaining: { $lte: behindLimit } } },
+
+      { $count: "totalTargetsAchieved" },
+    ]);
+
+    const totalTargetsAchieved = targetsAgg?.[0]?.totalTargetsAchieved || 0;
+
+    return res.status(200).json({
+      totalAdmins,
+      totalUsers,
+      totalActiveUsers,
+      totalInActiveUsers,
+      totalExpiringSoon,
+      totalTargetsAchieved,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 
 exports.getReports = async (req, res) => {
   try {

@@ -21,6 +21,8 @@ import DU from './admin/pages/DU'
 import Report from './admin/pages/Report'
 import Drafts from './admin/pages/Drafts'
 import ChangePassword from './admin/pages/ChangePassword'
+import TA from './admin/pages/TA'
+import Expiring from './admin/pages/Expiring'
 
 import SLogin from './subadmin/pages/SLogin'
 import SHome from './subadmin/pages/SHome'
@@ -47,6 +49,8 @@ function App() {
         <Route path='/admin/manage-admin' element={<MA/>}/>
         <Route path='/admin/manage-admin/add-admin' element={<AddAdmin/>}/>
         <Route path='/admin/manage-user' element={<MU/>}/>
+        <Route path='/admin/expiring-soon' element={<Expiring/>}/>
+        <Route path='/admin/targets-achieved' element={<TA/>}/>
         <Route path='/admin/manage-user/add-user' element={<AddUser/>}/>
         <Route path='/admin/manage-package' element={<MP/>}/>
         <Route path='/admin/manage-package/add-package' element={<AddPackage/>}/>
