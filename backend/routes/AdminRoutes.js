@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword,declareReport,undeclareReport, getExpiringSoonUsers, getTargetsAchievedUsers } = require('../controllers/AdminController');
+const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,markUserComplete,markUserIncomplete, getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword,declareReport,undeclareReport, getExpiringSoonUsers, getTargetsAchievedUsers } = require('../controllers/AdminController');
 
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -25,6 +25,8 @@ router.put('/:id/activate-user',authMiddleware,activateUser);
 router.put('/:id/deactivate-user',authMiddleware,deactivateUser);
 router.delete('/:id/delete-user',authMiddleware,deleteUser);
 router.put('/:id/edit-user',authMiddleware,editUser);
+router.put('/:id/mark-incomplete',authMiddleware,markUserIncomplete);
+router.put('/:id/mark-complete',authMiddleware,markUserComplete);
 
 router.get('/get-users',authMiddleware,getUsers);
 router.get('/get-activeusers',authMiddleware,getActiveUsers);

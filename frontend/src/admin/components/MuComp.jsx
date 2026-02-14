@@ -98,9 +98,34 @@ function MuComp() {
     }
   };
 
+  const handleMarkIncomplete = async (id) => {
+    try {
+      await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${id}/mark-incomplete`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getUsers();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleMarkComplete = async (id) => {
+    try {
+      await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${id}/mark-complete`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getUsers();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
   useEffect(() => {
     getUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const exportToExcel = () => {
@@ -311,6 +336,7 @@ const exportToPDF = () => {
                 <th className="myth">Email Id</th>
                 <th className="myth">Password</th>
                 <th className="myth">Status</th>
+                <th className="myth">Work</th>
                 <th className="myth">Expiry</th>
                 <th className="myth">Goal Status</th>
                 <th className="myth">Action</th>
@@ -335,6 +361,14 @@ const exportToPDF = () => {
                         <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
                       )}
                     </td>
+                    <td className="mytd">
+                      {user.isComplete === false ? (
+                        <span style={{ color: "#b91c1c", fontWeight: "bold" }}>Incomplete</span>
+                      ) : (
+                        <span style={{ color: "#065f46", fontWeight: "bold" }}>Complete</span>
+                      )}
+                    </td>
+
 
                     <td className="mytd">
                       {user.expiry ? new Date(user.expiry).toLocaleDateString() : "-"}
@@ -377,6 +411,15 @@ const exportToPDF = () => {
                       ) : (
                         <button className="active" onClick={() => handleAddToDraft(user._id)}>
                           Add to Draft
+                        </button>
+                      )}
+                      {user.isComplete === false ? (
+                        <button className="active" onClick={() => handleMarkComplete(user._id)}>
+                          Mark Complete
+                        </button>
+                      ) : (
+                        <button className="inactive" onClick={() => handleMarkIncomplete(user._id)}>
+                          Mark Incomplete
                         </button>
                       )}
 

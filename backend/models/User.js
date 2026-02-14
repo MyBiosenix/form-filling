@@ -56,6 +56,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
         index: true
+    },
+    isComplete: {
+        type: Boolean,
+        default: true,
+        index: true,
     }
 })
 

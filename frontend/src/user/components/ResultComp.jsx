@@ -1,9 +1,17 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+// ResultComp.jsx (FULL UPDATED + Row click focuses Excel row)
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import "../styles/result.css";
 import * as XLSX from "xlsx-js-style";
 import ExcelTable from "../../user/components/ExcelTable";
 import axios from "axios";
 
+/* ------------------- helpers ------------------- */
 function xfnv1a(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -29,13 +37,13 @@ function shuffleWithSeed(arr, seed) {
   }
   return a;
 }
-
 const norm = (v) =>
   String(v ?? "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
 
+/* ------------------- download report ------------------- */
 function downloadFinalReportsXlsx(finalReports) {
   if (!finalReports || finalReports.length === 0) return;
 
@@ -49,7 +57,10 @@ function downloadFinalReportsXlsx(finalReports) {
     mistakePercent: `${Number(r.mistakePercent) || 0}%`,
   }));
 
-  const totalMistakes = rows.reduce((sum, r) => sum + (Number(r.mistakes) || 0), 0);
+  const totalMistakes = rows.reduce(
+    (sum, r) => sum + (Number(r.mistakes) || 0),
+    0
+  );
   const totalPercent = `${totalMistakes}%`;
 
   const today = new Date();
@@ -68,17 +79,11 @@ function downloadFinalReportsXlsx(finalReports) {
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
 
-  ws["!cols"] = [
-    { wch: 16 }, 
-    { wch: 16 }, 
-    { wch: 18 }, 
-  ];
-
+  ws["!cols"] = [{ wch: 16 }, { wch: 16 }, { wch: 18 }];
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, 
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, 
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
   ];
-
   ws["!views"] = [{ state: "frozen", ySplit: 4 }];
 
   const borderThin = {
@@ -120,7 +125,7 @@ function downloadFinalReportsXlsx(finalReports) {
     border: borderThin,
   }));
 
-  const dataStartRow = 4; 
+  const dataStartRow = 4;
   const dataEndRow = dataStartRow + rows.length - 1;
 
   rangeStyle(dataStartRow, 0, dataEndRow, 2, (r, c, cell) => {
@@ -144,7 +149,6 @@ function downloadFinalReportsXlsx(finalReports) {
   });
 
   const totalRowIndex = 4 + rows.length + 1;
-
   rangeStyle(totalRowIndex, 0, totalRowIndex, 2, () => ({
     font: { bold: true, color: { rgb: "111827" } },
     fill: { patternType: "solid", fgColor: { rgb: "E5E7EB" } },
@@ -152,25 +156,20 @@ function downloadFinalReportsXlsx(finalReports) {
     border: borderThin,
   }));
 
-  setCellStyle(XLSX.utils.encode_cell({ r: totalRowIndex, c: 0 }), {
-    font: { bold: true, color: { rgb: "111827" } },
-    fill: { patternType: "solid", fgColor: { rgb: "E5E7EB" } },
-    alignment: { horizontal: "center", vertical: "center" },
-    border: borderThin,
-  });
-
   XLSX.utils.book_append_sheet(wb, ws, "Final Report");
 
   const fileName = `Final_Report_${today.toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
 }
 
+/* ------------------- MyResponses ------------------- */
 function MyResponses({
   title = "My Responses",
   goal = 0,
   mistakeFormSet,
   excelByRowId,
   excelHeaders,
+  onFocusExcelRow, // ✅ NEW
 }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -179,10 +178,9 @@ function MyResponses({
     const fetchEntries = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(
-          "https://api.freelancing-projects.com/api/user/entries",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await axios.get("https://api.freelancing-projects.com/api/user/entries", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         let data = Array.isArray(res.data) ? res.data : [];
         data.sort((a, b) => a.formNo - b.formNo);
@@ -202,7 +200,6 @@ function MyResponses({
 
   const headers = useMemo(() => {
     if (Array.isArray(excelHeaders) && excelHeaders.length) return excelHeaders;
-
     if (!entries.length) return [];
     return Object.keys(entries[0]?.responses || {});
   }, [entries, excelHeaders]);
@@ -220,7 +217,6 @@ function MyResponses({
 
       const excelVal = excelRow?.[header] ?? "";
       const userVal = entry?.responses?.[header] ?? "";
-
       return norm(excelVal) !== norm(userVal);
     },
     [excelByRowId]
@@ -255,11 +251,17 @@ function MyResponses({
                 return (
                   <tr
                     key={e._id}
+                    onClick={() => onFocusExcelRow?.(e.excelRowId)} // ✅ CLICK -> focus excel row
                     style={{
+                      cursor: "pointer",
                       backgroundColor: rowMark ? "#ffe2e2" : "transparent",
                       fontWeight: rowMark ? 700 : 400,
                     }}
-                    title={rowMark ? "This form has mistakes" : ""}
+                    title={
+                      rowMark
+                        ? "This form has mistakes (click to focus Excel row)"
+                        : "Click to focus Excel row"
+                    }
                   >
                     <td>{e.formNo}</td>
                     <td>{e.excelRowId}</td>
@@ -272,9 +274,13 @@ function MyResponses({
                         <td
                           key={h}
                           style={{
-                            backgroundColor: cellMistake ? "#ffb3b3" : "transparent",
+                            backgroundColor: cellMistake
+                              ? "#ffb3b3"
+                              : "transparent",
                             fontWeight: cellMistake ? 800 : "inherit",
-                            border: cellMistake ? "1px solid #ef4444" : undefined,
+                            border: cellMistake
+                              ? "1px solid #ef4444"
+                              : undefined,
                           }}
                           title={cellMistake ? "Mismatch with Excel value" : ""}
                         >
@@ -288,7 +294,6 @@ function MyResponses({
             </tbody>
           </table>
 
-          {/* small legend */}
           <div style={{ marginTop: 10, fontSize: 12, color: "#444" }}>
             <span
               style={{
@@ -316,7 +321,7 @@ function MyResponses({
   );
 }
 
-/** ------------------- FinalReports ------------------- */
+/* ------------------- FinalReports ------------------- */
 function FinalReports({ title = "Your Report", finalReports, loading }) {
   const totals = useMemo(() => {
     const totalMistakes = (finalReports || []).reduce(
@@ -402,12 +407,47 @@ function FinalReports({ title = "Your Report", finalReports, loading }) {
         </table>
       </div>
 
-      <div className="finalHint">Tip: These are the reports published by admin for your account.</div>
+      <div className="finalHint">
+        Tip: These are the reports published by admin for your account.
+      </div>
     </section>
   );
 }
 
-/** ------------------- ResultComp (FULL) ------------------- */
+/* ------------------- Status Message Card ------------------- */
+function StatusCard({ title, message, tone = "neutral" }) {
+  const styles =
+    tone === "warning"
+      ? { border: "1px solid #fecaca", background: "#fff7ed", heading: "#7c2d12" }
+      : { border: "1px solid #e5e7eb", background: "#fff", heading: "#111827" };
+
+  return (
+    <div className="myworkk">
+      <div
+        style={{
+          maxWidth: 900,
+          margin: "30px auto",
+          padding: 20,
+          borderRadius: 12,
+          border: styles.border,
+          background: styles.background,
+        }}
+      >
+        <h2 style={{ margin: 0, color: styles.heading }}>{title}</h2>
+        <p style={{ marginTop: 10, color: "#374151", lineHeight: 1.6 }}>
+          {message}
+        </p>
+        {tone === "warning" && (
+          <p style={{ marginTop: 8, color: "#374151" }}>
+            If you believe this is incorrect, please contact your administrator.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------- ResultComp (FULL) ------------------- */
 export default function ResultComp() {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -415,42 +455,99 @@ export default function ResultComp() {
   const [goal, setGoal] = useState(0);
   const [goalLoading, setGoalLoading] = useState(true);
 
-  // ✅ final reports in parent (used for download + highlighting)
+  const [reportDeclared, setReportDeclared] = useState(false);
+  const [isComplete, setIsComplete] = useState(true);
+
   const [finalReports, setFinalReports] = useState([]);
   const [finalLoading, setFinalLoading] = useState(true);
 
-  // ✅ forms that have mistakes (fast lookup for red row highlighting)
   const [mistakeFormSet, setMistakeFormSet] = useState(new Set());
 
   const userId = localStorage.getItem("userId");
 
-  /** goal */
+  // ✅ Excel focus ref
+  const excelRef = useRef(null);
+
+  const focusExcelRow = useCallback((rowId) => {
+    const rid = Number(rowId);
+    if (!Number.isFinite(rid) || rid <= 0) return;
+    excelRef.current?.focusRow(rid);
+  }, []);
+
+  /** dash stats */
   useEffect(() => {
-    const fetchGoal = async () => {
+    const fetchDash = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token || !userId) return;
+        if (!token || !userId) {
+          setGoalLoading(false);
+          setFinalLoading(false);
+          return;
+        }
 
         const res = await axios.get(
           `https://api.freelancing-projects.com/api/user/${userId}/get-dashstats`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const g = Number(res.data?.goal) || 0;
-        setGoal(g);
+        setGoal(Number(res.data?.goal) || 0);
+        setReportDeclared(!!res.data?.reportDeclared);
+        setIsComplete(res.data?.isComplete === false ? false : true);
       } catch (err) {
-        console.log("Failed to load goal", err);
+        console.log("Failed to load dash stats", err);
         setGoal(0);
+        setReportDeclared(false);
+        setIsComplete(true);
       } finally {
         setGoalLoading(false);
       }
     };
 
-    fetchGoal();
+    fetchDash();
   }, [userId]);
 
-  /** excel */
+  /** final reports */
+  const fetchFinalReports = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("https://api.freelancing-projects.com/api/user/finalreports", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const list = Array.isArray(res.data) ? res.data : [];
+      list.sort((a, b) => a.formNo - b.formNo);
+
+      setFinalReports(list);
+
+      const set = new Set(
+        list
+          .filter((r) => Number(r.mistakes) > 0)
+          .map((r) => Number(r.formNo))
+      );
+      setMistakeFormSet(set);
+    } catch (err) {
+      console.log("Failed to load final reports", err);
+      setFinalReports([]);
+      setMistakeFormSet(new Set());
+    } finally {
+      setFinalLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
+    if (!reportDeclared || !isComplete) {
+      setFinalReports([]);
+      setMistakeFormSet(new Set());
+      setFinalLoading(false);
+      return;
+    }
+    fetchFinalReports();
+  }, [fetchFinalReports, reportDeclared, isComplete]);
+
+  /** excel load */
+  useEffect(() => {
+    if (!reportDeclared || !isComplete) return;
+
     const loadExcel = async () => {
       try {
         const res = await fetch("/DMSPro V 5.1 - 6K.xlsx");
@@ -468,38 +565,7 @@ export default function ResultComp() {
     };
 
     loadExcel();
-  }, []);
-
-  /** final reports */
-  const fetchFinalReports = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get(
-        "https://api.freelancing-projects.com/api/user/finalreports",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const list = Array.isArray(res.data) ? res.data : [];
-      list.sort((a, b) => a.formNo - b.formNo);
-
-      setFinalReports(list);
-
-      const set = new Set(
-        list.filter((r) => Number(r.mistakes) > 0).map((r) => Number(r.formNo))
-      );
-      setMistakeFormSet(set);
-    } catch (err) {
-      console.log("Failed to load final reports", err);
-      setFinalReports([]);
-      setMistakeFormSet(new Set());
-    } finally {
-      setFinalLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchFinalReports();
-  }, [fetchFinalReports]);
+  }, [reportDeclared, isComplete]);
 
   const shuffledData = useMemo(() => {
     if (!data.length) return [];
@@ -521,22 +587,42 @@ export default function ResultComp() {
     return map;
   }, [displayData]);
 
+  /* ✅ professional messages */
+  if (goalLoading) return <div className="myworkk">Loading...</div>;
+
+  if (!reportDeclared) {
+    return (
+      <StatusCard
+        tone="neutral"
+        title="Report Not Available"
+        message="Your report is not available yet because it has not been published by the administrator. Please check again later."
+      />
+    );
+  }
+
+  if (!isComplete) {
+    return (
+      <StatusCard
+        tone="warning"
+        title="Report Incomplete"
+        message="Your report is currently unavailable because your assigned work is marked as incomplete. Please complete the remaining forms to generate the final report."
+      />
+    );
+  }
+
+  /* ✅ normal full report UI */
   return (
     <div className="myworkk">
       <div className="topRow">
         <div className="wrk1">
           <div className="tble1">
             <h2>Excel Data</h2>
-
             <p style={{ marginTop: -8, color: "#6b7280", fontSize: 13 }}>
-              {goalLoading
-                ? "Loading goal..."
-                : goal
-                ? `Assigned: ${goal} rows`
-                : "Assigned: All rows"}
+              {goal ? `Assigned: ${goal} rows` : "Assigned: All rows"}
             </p>
 
-            <ExcelTable data={displayData} headers={headers} />
+            {/* ✅ ref added */}
+            <ExcelTable ref={excelRef} data={displayData} headers={headers} />
           </div>
         </div>
 
@@ -547,11 +633,16 @@ export default function ResultComp() {
             mistakeFormSet={mistakeFormSet}
             excelByRowId={excelByRowId}
             excelHeaders={headers}
+            onFocusExcelRow={focusExcelRow} // ✅ pass handler
           />
         </div>
       </div>
 
-      <FinalReports title="Your Reports" finalReports={finalReports} loading={finalLoading} />
+      <FinalReports
+        title="Your Reports"
+        finalReports={finalReports}
+        loading={finalLoading}
+      />
     </div>
   );
 }

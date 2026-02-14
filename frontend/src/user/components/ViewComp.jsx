@@ -47,7 +47,7 @@ function MyResponses({ title = "My Responses" }) {
               <tr>
                 <th>Form No</th>
                 <th>Excel Row ID</th>
-                <th>Date</th>
+                <th>TimeStamp</th>
                 {headers.map((h) => (
                   <th key={h}>{h}</th>
                 ))}

@@ -166,7 +166,7 @@ exports.getdashStats = async (req, res) => {
 
     const pkg = user.packages;
     const packageName = pkg?.name || "";
-    const goal = Number(pkg?.forms) || 0;  
+    const goal = Number(pkg?.forms) || 0;
 
     const totalFormsDone = await FormEntry.countDocuments({ userId: id });
 
@@ -175,12 +175,17 @@ exports.getdashStats = async (req, res) => {
       goal,
       totalFormsDone,
 
-      reportDeclared: user.reportDeclared,
+      reportDeclared: !!user.reportDeclared,
+
+      // ✅ ADD THESE
+      expiry: user.expiry,                 // for dashboard timer / validity
+      isComplete: user.isComplete !== false // default true if missing
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
+
 
 
 exports.ChangePassword = async(req,res) => {

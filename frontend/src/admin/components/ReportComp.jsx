@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "../styles/report.css";
 import * as XLSX from "xlsx";
 import ExcelTable from "../../user/components/ExcelTable";
@@ -60,9 +60,11 @@ function ReportComp() {
   const [editDraft, setEditDraft] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // ✅ NEW: declare/undeclare report
   const [reportDeclared, setReportDeclared] = useState(false);
   const [declaring, setDeclaring] = useState(false);
+
+  const excelRef = useRef(null);
+  const [activeExcelRowId, setActiveExcelRowId] = useState(null);
 
   const location = useLocation();
   const user = location.state?.user;
@@ -74,7 +76,15 @@ function ReportComp() {
     return Number.isFinite(v) ? v : 0;
   }, [user?.packages?.forms]);
 
-  // ✅ set initial state from navigation (if provided)
+  const handleComparisonRowClick = (row) => {
+    const rid = Number(row.excelRowId);
+    if (!Number.isFinite(rid) || rid <= 0) return;
+
+    setActiveExcelRowId(rid);
+
+    excelRef.current?.focusRow(rid);
+  };
+
   useEffect(() => {
     setReportDeclared(!!user?.reportDeclared);
   }, [user?.reportDeclared]);
@@ -379,7 +389,7 @@ function ReportComp() {
               ) : null}
             </p>
 
-            <ExcelTable data={displayData} headers={headers} />
+            <ExcelTable ref={excelRef} data={displayData} headers={headers} />
           </div>
         </div>
 
@@ -393,6 +403,8 @@ function ReportComp() {
             td={td}
             toStr={toStr}
             onEdit={openEdit}
+            onRowClick={handleComparisonRowClick}     
+            activeRowId={activeExcelRowId}  
           />
 
           <div style={{ marginTop: 10, color: "#222", fontSize: 13 }}>

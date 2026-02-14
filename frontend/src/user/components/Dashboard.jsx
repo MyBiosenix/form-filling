@@ -9,6 +9,7 @@ function Dashboard() {
   const [packageName, setPackageName] = useState("");
   const [goal, setGoal] = useState(0);
   const [goalStatus, setGoalStatus] = useState(0);
+  const [isComplete, setIsComplete] = useState(true);
 
   const [myUser, setMyUser] = useState(null);
   const [reportDeclared, setReportDeclared] = useState(false);
@@ -20,7 +21,6 @@ function Dashboard() {
 
   const navigate = useNavigate();
 
-  // ✅ format expiry like: 14/03/2026, 2:53 PM
   const formatDateTimeIN = (v) => {
     if (!v) return "-";
     const d = new Date(v);
@@ -63,6 +63,7 @@ function Dashboard() {
       setGoal(res.data.goal);
       setGoalStatus(res.data.totalFormsDone);
       setReportDeclared(!!res.data.reportDeclared);
+      setIsComplete(res.data?.isComplete === false ? false : true);
 
       // ✅ keep expiry always fresh (avoid old localStorage expiry)
       if (res.data.expiry) {
@@ -125,12 +126,10 @@ function Dashboard() {
   }, [myUser?.expiry]);
 
   const handleReportClick = () => {
-    if (!reportDeclared) {
-      alert("Reports not declared yet");
-      return;
-    }
     navigate("/result");
   };
+
+
 
   if (!myUser) {
     return <p>Loading Profile...</p>;
@@ -172,7 +171,9 @@ function Dashboard() {
           <FaChartLine className="icn" />
           <div className="inbox">
             <h5>Report</h5>
-            <h4>{reportDeclared ? "Click to See" : "Not Declared"}</h4>
+            <h4>
+              {!reportDeclared ? "Not Declared" : !isComplete ? "Incomplete" : "Click to See"}
+            </h4>
             <p className="forms">Your Reports</p>
           </div>
         </div>

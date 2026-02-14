@@ -41,7 +41,7 @@ function ChangePassComp() {
     <div className='userform'>
       <h2>Change Password</h2>
       <div className='form1'>
-        <h3>Enter Basic Details</h3>
+        <h3>Enter Password Details</h3>
         <div className='inform'>
 
           <input type='text' placeholder='Enter Current Password*' value={password} required onChange={(e)=>setPassword(e.target.value)}/>
