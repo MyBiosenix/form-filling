@@ -46,59 +46,59 @@ function Dashboard() {
     },[]);
 
   return (
-    <div className="mydassh">
-        <div className="dashHeader">
+    <div className="mydassh1">
+        <div className="dashHeader1">
         <div>
-            <h3 className="dashTitle">Dashboard</h3>
-            <p className="dashSub">Quick overview of admins, users, expiry & targets.</p>
+            <h3 className="dashTitle1">Dashboard</h3>
+            <p className="dashSub1">Quick overview of admins, users, expiry & targets.</p>
         </div>
         </div>
 
-        <div className="boxes">
-        <div className="box" onClick={() => navigate("/admin/manage-admin")}>
-            <div className="iconWrap"><FaUserShield /></div>
-            <div className="inbox">
+        <div className="boxes1">
+        <div className="box1" onClick={() => navigate("/admin/manage-admin")}>
+            <div className="iconWrap1"><FaUserShield /></div>
+            <div className="inbox1">
             <h5>Total Admins</h5>
             <h4>{admins}</h4>
             </div>
         </div>
 
-        <div className="box" onClick={() => navigate("/admin/manage-user")}>
-            <div className="iconWrap"><FaUsers /></div>
-            <div className="inbox">
+        <div className="box1" onClick={() => navigate("/admin/manage-user")}>
+            <div className="iconWrap1"><FaUsers /></div>
+            <div className="inbox1">
             <h5>Total Users</h5>
             <h4>{users}</h4>
             </div>
         </div>
 
-        <div className="box" onClick={() => navigate("/admin/active-users")}>
-            <div className="iconWrap"><FaUserCheck /></div>
-            <div className="inbox">
+        <div className="box1" onClick={() => navigate("/admin/active-users")}>
+            <div className="iconWrap1"><FaUserCheck /></div>
+            <div className="inbox1">
             <h5>Active Users</h5>
             <h4>{activeUsers}</h4>
             </div>
         </div>
 
-        <div className="box" onClick={() => navigate("/admin/deactivated-users")}>
-            <div className="iconWrap"><FaUserSlash /></div>
-            <div className="inbox">
+        <div className="box1" onClick={() => navigate("/admin/deactivated-users")}>
+            <div className="iconWrap1"><FaUserSlash /></div>
+            <div className="inbox1">
             <h5>Deactivated Users</h5>
             <h4>{inactiveUsers}</h4>
             </div>
         </div>
 
         {/* change route if you have pages */}
-        <div className="box" onClick={() => navigate("/admin/expiring-soon")}>
-            <div className="iconWrap"><FaClock /></div>
-            <div className="inbox">
+        <div className="box1" onClick={() => navigate("/admin/expiring-soon")}>
+            <div className="iconWrap1"><FaClock /></div>
+            <div className="inbox1">
             <h5>Expiring Soon</h5>
             <h4>{expiringSoon}</h4>
             </div>
         </div>
 
-        <div className="box" onClick={() => navigate("/admin/targets-achieved")}>
-            <div className="iconWrap"><FaClock /></div>
-            <div className="inbox">
+        <div className="box1" onClick={() => navigate("/admin/targets-achieved")}>
+            <div className="iconWrap1"><FaClock /></div>
+            <div className="inbox1">
             <h5>Targets Achieved</h5>
             <h4>{targetsAchieved}</h4>
             </div>
