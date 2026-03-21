@@ -314,7 +314,7 @@ function WorkComp() {
       </div>
 
       <div className="form">
-        <h2>
+        <h2 style={{color:'red'}}>
           Form No. {formNo}{" "}
           {goal ? (
             <span style={{ fontSize: 13, color: "#6b7280" }}>
