@@ -174,18 +174,16 @@ exports.getdashStats = async (req, res) => {
       packageName,
       goal,
       totalFormsDone,
-
       reportDeclared: !!user.reportDeclared,
-
-      // ✅ ADD THESE
-      expiry: user.expiry,                 // for dashboard timer / validity
-      isComplete: user.isComplete !== false // default true if missing
+      expiry: user.expiry,
+      isComplete: user.isComplete !== false,
+      softwareUsed: !!user.softwareUsed,       // ✅ ADD THIS
+      notInSequence: !!user.notInSequence,     // ✅ ADD THIS
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
-
 
 
 exports.ChangePassword = async(req,res) => {

@@ -9,9 +9,14 @@ export default function MistakeSummaryPanel({
   onToggle,
   finalReports,
   userId,
-  onUpdatedFinalReports
+  onUpdatedFinalReports,
+  onSummaryRowClick,   // ✅ NEW
+  doubleEntryRowIds,   // ✅ NEW
 }) {
   if (!summaryRows.length) return null;
+
+  const DOUBLE_ENTRY_BG = "#fce7f3";
+  const DOUBLE_ENTRY_BORDER = "#db2777";
 
   const finalMap = useMemo(() => {
     const m = new Map();
@@ -24,8 +29,7 @@ export default function MistakeSummaryPanel({
       (sum, r) => sum + (Number(r.mistakes) || 0),
       0
     );
-    const totalMistakePercent = totalMistakes;
-    return { totalMistakes, totalMistakePercent };
+    return { totalMistakes, totalMistakePercent: totalMistakes };
   }, [finalReports]);
 
   const handleEditCount = async (row) => {
@@ -58,13 +62,11 @@ export default function MistakeSummaryPanel({
 
     try {
       const token = localStorage.getItem("token");
-
       await axios.put(
         `https://api.freelancing-projects.com/api/admin/${userId}/update-count`,
         { formNo: row.formNo, mistakes: count },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (typeof onUpdatedFinalReports === "function") {
         onUpdatedFinalReports();
       }
@@ -73,27 +75,30 @@ export default function MistakeSummaryPanel({
       alert(err?.response?.data?.message || "Failed to update count");
     }
   };
+
   const allTotals = useMemo(() => {
     const totalMistakes = summaryRows.reduce((sum, r) => {
       const saved = finalMap.get(r.formNo);
       const displayMistakes = Number(saved?.mistakes ?? r.mistakes) || 0;
       return sum + displayMistakes;
     }, 0);
-
-    return {
-      totalMistakes,
-      totalMistakePercent: totalMistakes, // your rule: mistakes == %
-    };
+    return { totalMistakes, totalMistakePercent: totalMistakes };
   }, [summaryRows, finalMap]);
 
   return (
     <section className="msWrap">
       <div className="msHeader">
         <h3>Mistakes Summary</h3>
-        <p>Tick “Set Visible” to publish a form in the final report.</p>
+        <p>
+          Tick "Set Visible" to publish a form in the final report.{" "}
+          <span style={{ color: "#6b7280", fontSize: 12 }}>
+            💡 Click any row to jump to it in the Excel &amp; Comparison tables.
+          </span>
+        </p>
       </div>
 
       <div className="msGrid">
+        {/* ── All Mistakes ── */}
         <div className="msCard">
           <div className="msCardTop">
             <h4>All Mistakes</h4>
@@ -117,15 +122,50 @@ export default function MistakeSummaryPanel({
                   const saved = finalMap.get(r.formNo);
                   const displayMistakes = saved?.mistakes ?? r.mistakes;
 
+                  // ✅ check if this formNo's excelRowId is a double entry
+                  // summaryRows come from comparisonRows which have excelRowId
+                  const isDouble = r.excelRowId != null
+                    ? doubleEntryRowIds?.has(Number(r.excelRowId))
+                    : false;
+
                   return (
-                    <tr key={r._id}>
-                      <td className="msStrong">{r.formNo}</td>
+                    <tr
+                      key={r._id}
+                      onClick={() => onSummaryRowClick?.(r.formNo)}
+                      style={{
+                        cursor: "pointer",
+                        backgroundColor: isDouble ? DOUBLE_ENTRY_BG : "transparent",
+                        borderLeft: isDouble ? `3px solid ${DOUBLE_ENTRY_BORDER}` : "none",
+                      }}
+                      title={
+                        isDouble
+                          ? `⚠️ Double Entry — click to jump to this row`
+                          : "Click to jump to this row in Excel & Comparison tables"
+                      }
+                    >
+                      <td className="msStrong">
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          {r.formNo}
+                          {isDouble && (
+                            <span style={{
+                              fontSize: 10, fontWeight: 700,
+                              color: DOUBLE_ENTRY_BORDER,
+                              background: "#fdf2f8",
+                              border: `1px solid ${DOUBLE_ENTRY_BORDER}`,
+                              borderRadius: 4, padding: "1px 4px",
+                              display: "inline-block",
+                            }}>
+                              ⚠️ Double
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="msStrong">{displayMistakes}</td>
                       <td className="msStrong">
                         {saved ? `${saved.mistakePercent}%` : r.mistakePercent}
                       </td>
 
-                      <td className="msCenter">
+                      <td className="msCenter" onClick={(e) => e.stopPropagation()}>
                         <label className="msSwitch">
                           <input
                             type="checkbox"
@@ -136,7 +176,7 @@ export default function MistakeSummaryPanel({
                         </label>
                       </td>
 
-                      <td className="msCenter">
+                      <td className="msCenter" onClick={(e) => e.stopPropagation()}>
                         <button
                           className="msBtn"
                           type="button"
@@ -154,23 +194,23 @@ export default function MistakeSummaryPanel({
                     </tr>
                   );
                 })}
+
                 <tr className="msTotalRow">
                   <td className="msStrong">TOTAL</td>
                   <td className="msStrong">{allTotals.totalMistakes}</td>
                   <td className="msStrong">{allTotals.totalMistakePercent}%</td>
-                  <td />
-                  <td />
+                  <td /><td />
                 </tr>
               </tbody>
             </table>
           </div>
 
           <div className="msNote">
-            Note: Mistake % is directly equal to number of mistakes (1 mistake = 1%,
-            2 mistakes = 2%, etc.)
+            Note: Mistake % is directly equal to number of mistakes (1 mistake = 1%, 2 mistakes = 2%, etc.)
           </div>
         </div>
 
+        {/* ── Selected Reports ── */}
         <div className="msCard">
           <div className="msCardTop">
             <h4>Selected Reports</h4>
@@ -187,18 +227,20 @@ export default function MistakeSummaryPanel({
                   <th>Saved At</th>
                 </tr>
               </thead>
-
               <tbody>
                 {finalReports.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="msEmpty">
-                      No selected reports yet.
-                    </td>
+                    <td colSpan={4} className="msEmpty">No selected reports yet.</td>
                   </tr>
                 ) : (
                   <>
                     {finalReports.map((r) => (
-                      <tr key={r._id || r.formNo}>
+                      <tr
+                        key={r._id || r.formNo}
+                        onClick={() => onSummaryRowClick?.(r.formNo)}
+                        style={{ cursor: "pointer" }}
+                        title="Click to jump to this row in Excel & Comparison tables"
+                      >
                         <td className="msStrong">{r.formNo}</td>
                         <td className="msStrong">{r.mistakes}</td>
                         <td className="msStrong">{r.mistakePercent}%</td>
@@ -207,7 +249,6 @@ export default function MistakeSummaryPanel({
                         </td>
                       </tr>
                     ))}
-
                     <tr className="msTotalRow">
                       <td className="msStrong">TOTAL</td>
                       <td className="msStrong">{selectedTotals.totalMistakes}</td>

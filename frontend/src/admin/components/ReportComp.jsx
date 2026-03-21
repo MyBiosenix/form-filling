@@ -64,6 +64,25 @@ function ReportComp() {
   const [declaring, setDeclaring] = useState(false);
 
   const excelRef = useRef(null);
+  // Add this ref at the top with other refs
+const comparisonRef = useRef(null);
+
+// Add this handler after handleComparisonRowClick
+const handleSummaryRowClick = (formNo) => {
+  // Find the comparisonRow matching this formNo
+  const matchedRow = comparisonRows.find((r) => r.formNo === formNo);
+  if (!matchedRow) return;
+
+  // 1. Focus Excel table row
+  const rid = Number(matchedRow.excelRowId);
+  if (Number.isFinite(rid) && rid > 0) {
+    setActiveExcelRowId(rid);
+    excelRef.current?.focusRow(rid);
+  }
+
+  // 2. Scroll comparison table to that row
+  comparisonRef.current?.scrollToFormNo(formNo);
+};
   const [activeExcelRowId, setActiveExcelRowId] = useState(null);
 
   const location = useLocation();
@@ -302,6 +321,22 @@ function ReportComp() {
     });
   }, [entries, headerss, excelByRowId, excelHeaderMap]);
 
+  // Add this memo after comparisonRows memo
+const doubleEntryRowIds = useMemo(() => {
+    const countMap = {};
+    for (const entry of entries) {
+      const id = Number(entry.excelRowId);
+      if (!Number.isFinite(id)) continue;
+      countMap[id] = (countMap[id] || 0) + 1;
+    }
+    // return a Set of excelRowIds that appear more than once
+    const set = new Set();
+    for (const [id, count] of Object.entries(countMap)) {
+      if (count > 1) set.add(Number(id));
+    }
+    return set;
+  }, [entries]);
+
   const summaryRows = useMemo(() => {
     return comparisonRows
       .filter((r) => r.mistakes > 0)
@@ -397,6 +432,7 @@ function ReportComp() {
           <h2 style={{ color: "black" }}>Comparison (Excel vs My Responses)</h2>
 
           <ComparisonTable
+            ref={comparisonRef}       
             comparisonRows={comparisonRows}
             headerss={headerss}
             th={th}
@@ -405,6 +441,7 @@ function ReportComp() {
             onEdit={openEdit}
             onRowClick={handleComparisonRowClick}     
             activeRowId={activeExcelRowId}  
+            doubleEntryRowIds={doubleEntryRowIds}
           />
 
           <div style={{ marginTop: 10, color: "#222", fontSize: 13 }}>
@@ -451,6 +488,8 @@ function ReportComp() {
         finalReports={finalReports}
         userId={userId}
         onUpdatedFinalReports={fetchFinalReports}
+        onSummaryRowClick={handleSummaryRowClick}  // ✅ ADD
+        doubleEntryRowIds={doubleEntryRowIds}  
       />
 
       <EditResponsesModal

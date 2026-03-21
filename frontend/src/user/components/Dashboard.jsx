@@ -1,4 +1,4 @@
-import "../styles/userDash.css"
+import "../styles/userDash.css";
 import { MdSubscriptions, MdOutlineTrackChanges } from "react-icons/md";
 import { FaBullseye, FaChartLine } from "react-icons/fa";
 import axios from "axios";
@@ -10,22 +10,21 @@ function Dashboard() {
   const [goal, setGoal] = useState(0);
   const [goalStatus, setGoalStatus] = useState(0);
   const [isComplete, setIsComplete] = useState(true);
+  const [softwareUsed, setSoftwareUsed] = useState(false);
+  const [notInSequence, setNotInSequence] = useState(false);
 
   const [myUser, setMyUser] = useState(null);
   const [reportDeclared, setReportDeclared] = useState(false);
-
   const [timeLeft, setTimeLeft] = useState("");
 
   const token = localStorage.getItem("token");
   const id = localStorage.getItem("userId");
-
   const navigate = useNavigate();
 
   const formatDateTimeIN = (v) => {
     if (!v) return "-";
     const d = new Date(v);
     if (isNaN(d.getTime())) return "-";
-
     return d.toLocaleString("en-IN", {
       day: "2-digit",
       month: "2-digit",
@@ -36,16 +35,11 @@ function Dashboard() {
     });
   };
 
-  // ✅ load local user first (fast UI)
   useEffect(() => {
     const users = localStorage.getItem("user");
     if (users) {
-      try {
-        const parsedUser = JSON.parse(users);
-        setMyUser(parsedUser);
-      } catch {
-        setMyUser(null);
-      }
+      try { setMyUser(JSON.parse(users)); }
+      catch { setMyUser(null); }
     } else {
       setMyUser(null);
     }
@@ -53,70 +47,54 @@ function Dashboard() {
 
   const getStats = async () => {
     try {
-      // IMPORTANT: backend must return expiry in this API
-      // return { packageName, goal, totalFormsDone, reportDeclared, expiry }
-      const res = await axios.get(`https://api.freelancing-projects.com/api/user/${id}/get-dashstats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(
+        `https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       setPackageName(res.data.packageName);
       setGoal(res.data.goal);
       setGoalStatus(res.data.totalFormsDone);
       setReportDeclared(!!res.data.reportDeclared);
       setIsComplete(res.data?.isComplete === false ? false : true);
+      setSoftwareUsed(!!res.data?.softwareUsed);
+      setNotInSequence(!!res.data?.notInSequence);
 
-      // ✅ keep expiry always fresh (avoid old localStorage expiry)
       if (res.data.expiry) {
         setMyUser((prev) => {
-          const updated = prev ? { ...prev, expiry: res.data.expiry } : { expiry: res.data.expiry };
-          // optional: update localStorage so refresh also stays correct
-          try {
-            localStorage.setItem("user", JSON.stringify(updated));
-          } catch {}
+          const updated = prev
+            ? { ...prev, expiry: res.data.expiry }
+            : { expiry: res.data.expiry };
+          try { localStorage.setItem("user", JSON.stringify(updated)); } catch {}
           return updated;
         });
       }
     } catch (err) {
-      if (err.response?.data?.message) alert(err.response.data.message);
-      else alert("Error Getting Dashboard Stats");
+      alert(err.response?.data?.message || "Error Getting Dashboard Stats");
     }
   };
 
   useEffect(() => {
     if (id && token) getStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
 
-  // ✅ Correct timer: uses expiry date+time as stored (NO 23:59 override)
   useEffect(() => {
-    if (!myUser?.expiry) {
-      setTimeLeft("-");
-      return;
-    }
+    if (!myUser?.expiry) { setTimeLeft("-"); return; }
 
     const pad = (n) => String(n).padStart(2, "0");
 
     const compute = () => {
       const expiry = new Date(myUser.expiry);
-      if (isNaN(expiry.getTime())) {
-        setTimeLeft("-");
-        return;
-      }
+      if (isNaN(expiry.getTime())) { setTimeLeft("-"); return; }
 
-      const now = new Date();
-      const diff = expiry.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeLeft("Expired");
-        return;
-      }
+      const diff = expiry.getTime() - new Date().getTime();
+      if (diff <= 0) { setTimeLeft("Expired"); return; }
 
       const totalSeconds = Math.floor(diff / 1000);
       const days = Math.floor(totalSeconds / (3600 * 24));
       const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-
       setTimeLeft(`${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
     };
 
@@ -125,21 +103,25 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [myUser?.expiry]);
 
-  const handleReportClick = () => {
-    navigate("/result");
+  // ── Report card content based on flags ──
+  const getReportCardContent = () => {
+    if (!reportDeclared)  return { label: "Not Declared",  sub: null };
+    if (softwareUsed)     return { label: "Unavailable",   sub: "Software Used Detected" };
+    if (notInSequence)    return { label: "Unavailable",   sub: "Not In Sequence" };
+    if (!isComplete)      return { label: "Incomplete",    sub: "Work Marked Incomplete" };
+    return { label: "Click to See", sub: null };
   };
 
+  const { label: reportLabel, sub: reportSub } = getReportCardContent();
 
-
-  if (!myUser) {
-    return <p>Loading Profile...</p>;
-  }
+  if (!myUser) return <p>Loading Profile...</p>;
 
   return (
     <div className="mydassh">
       <h3>Dashboard</h3>
 
       <div className="boxes">
+
         <div className="box" onClick={() => navigate("/profile")}>
           <MdSubscriptions className="icn" />
           <div className="inbox">
@@ -167,23 +149,41 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="box" onClick={handleReportClick}>
+        <div className="box" onClick={() => navigate("/result")}>
           <FaChartLine className="icn" />
           <div className="inbox">
             <h5>Report</h5>
-            <h4>
-              {!reportDeclared ? "Not Declared" : !isComplete ? "Incomplete" : "Click to See"}
+            <h4
+              style={{
+                color:
+                  softwareUsed || notInSequence || !isComplete
+                    ? "#b91c1c"
+                    : "inherit",
+              }}
+            >
+              {reportLabel}
             </h4>
-            <p className="forms">Your Reports</p>
+            {reportSub ? (
+              <p
+                className="forms"
+                style={{ color: "#b91c1c", fontWeight: 600, fontSize: 11 }}
+              >
+                {reportSub}
+              </p>
+            ) : (
+              <p className="forms">Your Reports</p>
+            )}
           </div>
         </div>
+
       </div>
 
       <p style={{ textAlign: "center", marginBottom: "6px" }}>
         <strong>Subscription Validity:</strong> {formatDateTimeIN(myUser.expiry)}
       </p>
-
-      <p style={{ textAlign: "center", fontWeight: 700 }}>Time Left: {timeLeft}</p>
+      <p style={{ textAlign: "center", fontWeight: 700 }}>
+        Time Left: {timeLeft}
+      </p>
     </div>
   );
 }

@@ -61,7 +61,15 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
         index: true,
-    }
+    },
+    softwareUsed: {
+        type: Boolean,
+        default: false,
+    },
+    notInSequence: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 module.exports = mongoose.model("User",userSchema);

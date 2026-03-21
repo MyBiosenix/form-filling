@@ -430,6 +430,65 @@ exports.markUserComplete = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+exports.markSoftwareUsed = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const u = await User.findByIdAndUpdate(
+      id,
+      { softwareUsed: true },
+      { new: true }
+    );
+    if (!u) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ message: "Marked as Software Used", user: u });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.unmarkSoftwareUsed = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const u = await User.findByIdAndUpdate(
+      id,
+      { softwareUsed: false },
+      { new: true }
+    );
+    if (!u) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ message: "Software Used unmarked", user: u });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.markNotInSequence = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const u = await User.findByIdAndUpdate(
+      id,
+      { notInSequence: true },
+      { new: true }
+    );
+    if (!u) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ message: "Marked as Not In Sequence", user: u });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.unmarkNotInSequence = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const u = await User.findByIdAndUpdate(
+      id,
+      { notInSequence: false },
+      { new: true }
+    );
+    if (!u) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ message: "Not In Sequence unmarked", user: u });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 exports.getActiveUsers = async(req,res) => {
     try{
