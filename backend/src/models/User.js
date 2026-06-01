@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema({
         type:Boolean,
         default:true
     },
+    totalFormsDone: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
     lastLoginSession: { type: String, default: null },
     isDraft: {
         type: Boolean,
@@ -71,5 +76,12 @@ const userSchema = new mongoose.Schema({
         default: false,
     },
 })
+
+userSchema.index({ status: 1 });
+userSchema.index({ admin: 1, status: 1 });
+userSchema.index({ status: 1, isDraft: 1, expiry: 1 });
+userSchema.index({ admin: 1, isDraft: 1, expiry: 1 });
+userSchema.index({ admin: 1, isDraft: 1, status: 1 });
+userSchema.index({ reportDeclared: 1, status: 1 });
 
 module.exports = mongoose.model("User",userSchema);

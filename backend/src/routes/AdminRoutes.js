@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { login,createadmin,getAdmin,editAdmin,deleteAdmin,createPackage,getPackages,deletePackage,createUser,getAdminName,getPackageName,getUsers,activateUser,deactivateUser, deleteUser,markUserComplete,markUserIncomplete,markSoftwareUsed, unmarkSoftwareUsed,
-  markNotInSequence, unmarkNotInSequence, getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport,getSavedReports, getFinalReports, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword,declareReport,undeclareReport, getExpiringSoonUsers, getTargetsAchievedUsers } = require('../controllers/AdminController');
+  markNotInSequence, unmarkNotInSequence, getActiveUsers,getInActiveUsers,editUser,getdashStats, getReports, editPackage, saveReport, saveReportsBulk, getSavedReports, getFinalReports, getReportOverrides, updateReportOverride, deleteReportOverride, updateReportCount, addToDraft, removeFromDraft, getDraftUsers,updateFormEntryResponses, ChangePassword,declareReport,undeclareReport, getExpiringSoonUsers, getTargetsAchievedUsers } = require('../controllers/AdminController');
 
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -43,7 +43,11 @@ router.get('/:id/get-reports',authMiddleware,getReports);
 router.put("/form-entry/:entryId", authMiddleware,updateFormEntryResponses);
 
 router.post('/:userId/save-reports',authMiddleware,saveReport);
+router.post('/:userId/save-reports-bulk',authMiddleware,saveReportsBulk);
 router.get('/:userId/get-savedreports',authMiddleware,getSavedReports);
+router.get('/:userId/get-report-overrides',authMiddleware,getReportOverrides);
+router.put('/:userId/report-overrides/:formNo',authMiddleware,updateReportOverride);
+router.delete('/:userId/report-overrides/:formNo',authMiddleware,deleteReportOverride);
 router.put('/:userId/declare-report',authMiddleware,declareReport);
 router.put('/:userId/undeclare-report',authMiddleware,undeclareReport)
 

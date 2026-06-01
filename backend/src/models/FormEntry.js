@@ -35,5 +35,8 @@ const FormEntrySchema = new mongoose.Schema(
   { minimize: true }
 );
 
+FormEntrySchema.index({ userId: 1, createdAt: -1 });
+FormEntrySchema.index({ userId: 1, formNo: -1 });
+FormEntrySchema.index({ userId: 1, excelRowId: 1 });
 
 module.exports = mongoose.model("FormEntry", FormEntrySchema);

@@ -6,6 +6,248 @@ const jwt = require('jsonwebtoken');
 const FinalReport = require('../models/FinalReport');
 const mongoose = require('mongoose');
 
+const userListBaseProjection = {
+  _id: 1,
+  name: 1,
+  email: 1,
+  password: 1,
+  mobile: 1,
+  admin: 1,
+  packages: 1,
+  price: 1,
+  paymentoptions: 1,
+  expiry: 1,
+  status: 1,
+  isDraft: 1,
+  reportDeclared: 1,
+  isComplete: 1,
+  softwareUsed: 1,
+  notInSequence: 1,
+  lastLoginSession: 1,
+};
+
+const buildUserListPipeline = (match = {}, { includeGoalStatus = false, sort = { createdAt: -1 } } = {}) => {
+  const pipeline = [
+    { $match: match },
+    {
+      $lookup: {
+        from: "formentries",
+        let: { uid: "$_id" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
+          { $count: "completedForms" },
+        ],
+        as: "submissionStats",
+      },
+    },
+    {
+      $lookup: {
+        from: "packagees",
+        localField: "packages",
+        foreignField: "_id",
+        as: "packages",
+      },
+    },
+    {
+      $unwind: {
+        path: "$packages",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "admins",
+        localField: "admin",
+        foreignField: "_id",
+        as: "admin",
+      },
+    },
+    {
+      $unwind: {
+        path: "$admin",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+  ];
+
+  if (includeGoalStatus) {
+    pipeline.push({
+      $addFields: {
+        goal: { $ifNull: ["$packages.forms", 0] },
+        completedForms: {
+          $ifNull: [{ $arrayElemAt: ["$submissionStats.completedForms", 0] }, 0],
+        },
+      },
+    });
+
+    pipeline.push({
+      $addFields: {
+        totalFormsDone: "$completedForms",
+        totalCompleted: "$completedForms",
+        workCompleted: "$completedForms",
+        goalStatus: {
+          $concat: [
+            { $toString: "$completedForms" },
+            "/",
+            { $toString: "$goal" },
+          ],
+        },
+      },
+    });
+  }
+
+  pipeline.push({
+    $project: {
+      ...userListBaseProjection,
+      packages: {
+        _id: "$packages._id",
+        name: "$packages.name",
+        forms: "$packages.forms",
+        price: "$packages.price",
+      },
+      admin: {
+        _id: "$admin._id",
+        name: "$admin.name",
+      },
+      ...(includeGoalStatus
+        ? {
+            goal: 1,
+            completedForms: 1,
+            totalFormsDone: 1,
+            totalCompleted: 1,
+            workCompleted: 1,
+            goalStatus: 1,
+          }
+        : {}),
+    },
+  });
+
+  if (sort) {
+    pipeline.push({ $sort: sort });
+  }
+
+  return pipeline;
+};
+
+const syncMissingUserTotals = async (match = {}) => {
+  const missingUsers = await User.find({
+    ...match,
+    totalFormsDone: { $exists: false },
+  })
+    .select("_id")
+    .lean();
+
+  if (!missingUsers.length) {
+    return;
+  }
+
+  const userIds = missingUsers.map((user) => user._id);
+  const counts = await FormEntry.aggregate([
+    { $match: { userId: { $in: userIds } } },
+    { $group: { _id: "$userId", totalFormsDone: { $sum: 1 } } },
+  ]);
+
+  const countMap = new Map(
+    counts.map((item) => [String(item._id), Number(item.totalFormsDone) || 0])
+  );
+
+  await User.bulkWrite(
+    userIds.map((userId) => ({
+      updateOne: {
+        filter: { _id: userId },
+        update: { $set: { totalFormsDone: countMap.get(String(userId)) || 0 } },
+      },
+    }))
+  );
+};
+
+const parsePagination = (query = {}) => {
+  const hasPage = query.page !== undefined;
+  const hasLimit = query.limit !== undefined;
+
+  if (!hasPage && !hasLimit) {
+    return null;
+  }
+
+  const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
+  const limit = Math.max(Number.parseInt(query.limit, 10) || 50, 1);
+
+  return {
+    page,
+    limit,
+    skip: (page - 1) * limit,
+  };
+};
+
+const buildPaginatedResponse = ({ data, page, limit, total }) => {
+  const totalPages = Math.max(Math.ceil(total / limit), 1);
+  const nextPage = page < totalPages ? page + 1 : null;
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      nextPage,
+    },
+  };
+};
+
+const ALLOWED_ERROR_TYPES = ["Case/Punctuation", "Major mismatch"];
+
+const normalizeErrorType = (value) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "Major mismatch";
+  return ALLOWED_ERROR_TYPES.includes(trimmed) ? trimmed : trimmed;
+};
+
+const normalizeReportPayload = (payload = {}, { includeSelection = false } = {}) => {
+  const formNo = Number(payload.formNo);
+  const mistakes = Number(payload.mistakes);
+  const totalFields = Number(payload.totalFields) || 0;
+  const accuracy = Number(payload.accuracy) || 0;
+  const mistakePercentValueRaw = payload.mistakePercentValue ?? payload.mistakePercent;
+  const mistakePercentValue = Number(String(mistakePercentValueRaw ?? "").replace("%", ""));
+
+  if (!Number.isFinite(formNo) || formNo <= 0) {
+    return { error: "Valid formNo is required" };
+  }
+
+  if (!Number.isFinite(mistakes) || mistakes < 0) {
+    return { error: "Valid mistakes count is required" };
+  }
+
+  if (!Number.isFinite(mistakePercentValue) || mistakePercentValue < 0) {
+    return { error: "Valid mistake percentage is required" };
+  }
+
+  if (!Number.isFinite(totalFields) || totalFields < 0) {
+    return { error: "Valid totalFields is required" };
+  }
+
+  if (!Number.isFinite(accuracy) || accuracy < 0) {
+    return { error: "Valid accuracy is required" };
+  }
+
+  const normalized = {
+    formNo,
+    mistakes,
+    mistakePercent: mistakePercentValue,
+    mistakePercentValue,
+    totalFields,
+    accuracy,
+    errorType: normalizeErrorType(payload.errorType),
+  };
+
+  if (includeSelection && payload.isSelected !== undefined) {
+    normalized.isSelected = Boolean(payload.isSelected);
+  }
+
+  return { data: normalized };
+};
+
 exports.login = async(req,res) => {
     try{
         const {email, password} = req.body;
@@ -306,36 +548,13 @@ exports.getPackageName = async(req,res) => {
 
 exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find()
-      .select("-__v")
-      .populate("packages", "name forms")
-      .populate("admin", "name")
-      .lean();
+    await syncMissingUserTotals();
 
-    const userIds = users.map((u) => u._id);
+    const users = await User.aggregate(
+      buildUserListPipeline({}, { includeGoalStatus: true })
+    );
 
-    const counts = await FormEntry.aggregate([
-      { $match: { userId: { $in: userIds } } },
-      { $group: { _id: "$userId", totalFormsDone: { $sum: 1 } } },
-    ]);
-
-    const countMap = {};
-    counts.forEach((c) => {
-      countMap[String(c._id)] = c.totalFormsDone;
-    });
-
-    const enriched = users.map((u) => {
-      const goal = Number(u?.packages?.forms) || 0;
-      const done = Number(countMap[String(u._id)]) || 0;
-
-      return {
-        ...u,
-        goal,
-        totalFormsDone: done,
-      };
-    });
-
-    return res.status(200).json(enriched);
+    return res.status(200).json(users);
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -492,7 +711,7 @@ exports.unmarkNotInSequence = async (req, res) => {
 
 exports.getActiveUsers = async(req,res) => {
     try{
-        const activeUsers = await User.find({status:true}).select('-__v');
+        const activeUsers = await User.find({status:true}).select('name email status').lean();
         res.status(200).json(activeUsers);
     }
     catch(err){
@@ -502,7 +721,7 @@ exports.getActiveUsers = async(req,res) => {
 
 exports.getInActiveUsers = async(req,res) => {
     try{
-        const InActiveUsers = await User.find({status:false}).select('-__v');
+        const InActiveUsers = await User.find({status:false}).select('name email status').lean();
         res.status(200).json(InActiveUsers);
     }
     catch(err){
@@ -532,6 +751,11 @@ exports.getExpiringSoonUsers = async (req, res) => {
 exports.getTargetsAchievedUsers = async (req, res) => {
   try {
     const behindLimit = Number(req.query.behind || 200);
+    await syncMissingUserTotals({
+      status: true,
+      isDraft: false,
+      packages: { $exists: true, $ne: null },
+    });
 
     const users = await User.aggregate([
       {
@@ -575,9 +799,7 @@ exports.getTargetsAchievedUsers = async (req, res) => {
       // ✅ compute goal + done + remaining
       {
         $addFields: {
-          totalFormsDone: {
-            $ifNull: [{ $arrayElemAt: ["$progress.completed", 0] }, 0],
-          },
+          totalFormsDone: { $ifNull: ["$totalFormsDone", 0] },
           goal: "$pkg.forms",
         },
       },
@@ -655,6 +877,12 @@ exports.getTargetsAchievedUsers = async (req, res) => {
 
 exports.getdashStats = async (req, res) => {
   try {
+    await syncMissingUserTotals({
+      status: true,
+      isDraft: false,
+      packages: { $exists: true, $ne: null },
+    });
+
     const now = new Date();
     const dayMs = 24 * 60 * 60 * 1000;
 
@@ -718,7 +946,7 @@ exports.getdashStats = async (req, res) => {
 
       {
         $addFields: {
-          completed: { $ifNull: [{ $arrayElemAt: ["$progress.completed", 0] }, 0] },
+          completed: { $ifNull: ["$totalFormsDone", 0] },
           target: "$pkg.forms",
         },
       },
@@ -749,9 +977,29 @@ exports.getReports = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const entries = await FormEntry.find({ userId: id })
+    const pagination = parsePagination(req.query);
+    const query = FormEntry.find({ userId: id })
+      .select("_id userId formNo excelRowId responses createdAt")
       .sort({ createdAt: -1 })
       .lean();
+
+    if (pagination) {
+      query.skip(pagination.skip).limit(pagination.limit);
+    }
+
+    const entries = await query;
+
+    if (pagination) {
+      const total = await FormEntry.countDocuments({ userId: id });
+      return res.status(200).json(
+        buildPaginatedResponse({
+          data: entries,
+          page: pagination.page,
+          limit: pagination.limit,
+          total,
+        })
+      );
+    }
 
     return res.status(200).json(entries);
   } catch (err) {
@@ -788,7 +1036,16 @@ exports.updateFormEntryResponses = async (req, res) => {
 
 exports.saveReport = async (req, res) => {
   try {
-    const { formNo, mistakes, mistakePercent, visible } = req.body;
+    const {
+      formNo,
+      mistakes,
+      mistakePercent,
+      mistakePercentValue,
+      totalFields,
+      accuracy,
+      errorType,
+      visible,
+    } = req.body;
     const { userId } = req.params;
 
     console.log("SAVE REPORT →", { userId, formNo, visible });
@@ -800,9 +1057,16 @@ exports.saveReport = async (req, res) => {
     if (visible) {
       const report = await FinalReport.findOneAndUpdate(
         { userId, formNo },
-        { mistakes, mistakePercent },
-        { upsert: true, new: true }
-      );
+        {
+          mistakes,
+          mistakePercent,
+          mistakePercentValue,
+          totalFields,
+          accuracy,
+          errorType,
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      ).lean();
 
       return res.status(200).json(report);
     } else {
@@ -814,6 +1078,83 @@ exports.saveReport = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
+
+exports.saveReportsBulk = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const reports = Array.isArray(req.body?.reports) ? req.body.reports : [];
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId missing" });
+    }
+
+    if (!reports.length) {
+      return res.status(200).json({ data: [], pagination: null });
+    }
+
+    const operations = reports
+      .filter((report) => report && report.formNo !== undefined)
+      .map((report) => {
+        const formNo = Number(report.formNo);
+
+        if (report.visible) {
+          return {
+            updateOne: {
+              filter: { userId, formNo },
+              update: {
+                $set: {
+                  mistakes: Number(report.mistakes) || 0,
+                  mistakePercent: Number(report.mistakePercent) || 0,
+                  mistakePercentValue:
+                    Number(report.mistakePercentValue ?? report.mistakePercent) || 0,
+                  totalFields: Number(report.totalFields) || 0,
+                  accuracy: Number(report.accuracy) || 0,
+                  errorType: report.errorType || "Major mismatch",
+                },
+              },
+              upsert: true,
+            },
+          };
+        }
+
+        return {
+          deleteOne: {
+            filter: { userId, formNo },
+          },
+        };
+      });
+
+    if (!operations.length) {
+      return res.status(200).json({ data: [], pagination: null });
+    }
+
+    await FinalReport.bulkWrite(operations, { ordered: false });
+
+    const visibleFormNos = reports
+      .filter((report) => report?.visible && report.formNo !== undefined)
+      .map((report) => Number(report.formNo));
+
+    const savedReports = visibleFormNos.length
+      ? await FinalReport.find({
+          userId,
+          formNo: { $in: visibleFormNos },
+        })
+          .select(
+            "_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType createdAt updatedAt"
+          )
+          .sort({ formNo: 1 })
+          .lean()
+      : [];
+
+    return res.status(200).json({
+      data: savedReports,
+      pagination: null,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 exports.getSavedReports = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -831,14 +1172,33 @@ exports.getSavedReports = async (req, res) => {
 exports.getFinalReports = async(req,res) => {
     try{
         const {userId} = req.params;
+        const pagination = parsePagination(req.query);
 
         if(!userId){
             return res.status(400).json({ message: "userId missing" });
         }
-        const reports = await FinalReport.find({ userId })
-            .select("formNo mistakes mistakePercent createdAt updatedAt") // full info for table
+        const query = FinalReport.find({ userId })
+            .select("_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType createdAt updatedAt")
             .sort({ formNo: 1 })
             .lean();
+
+        if (pagination) {
+            query.skip(pagination.skip).limit(pagination.limit);
+        }
+
+        const reports = await query;
+
+        if (pagination) {
+            const total = await FinalReport.countDocuments({ userId });
+            return res.status(200).json(
+              buildPaginatedResponse({
+                data: reports,
+                page: pagination.page,
+                limit: pagination.limit,
+                total,
+              })
+            );
+        }
 
         return res.status(200).json(reports);
     }
@@ -877,6 +1237,264 @@ exports.updateReportCount = async (req, res) => {
   }
 };
 
+exports.saveReport = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { visible } = req.body;
+    const normalized = normalizeReportPayload(req.body);
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId or formNo missing" });
+    }
+
+    if (normalized.error) {
+      return res.status(400).json({ message: normalized.error });
+    }
+
+    const report = await FinalReport.findOneAndUpdate(
+      { userId, formNo: normalized.data.formNo },
+      {
+        $set: {
+          ...normalized.data,
+          isSelected: Boolean(visible),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    return res.status(200).json(report);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.saveReportsBulk = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const reports = Array.isArray(req.body?.reports) ? req.body.reports : [];
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId missing" });
+    }
+
+    if (!reports.length) {
+      return res.status(200).json({ data: [], pagination: null });
+    }
+
+    const operations = reports
+      .map((report) => {
+        const normalized = normalizeReportPayload(report);
+        if (normalized.error) {
+          return null;
+        }
+
+        return {
+          updateOne: {
+            filter: { userId, formNo: normalized.data.formNo },
+            update: {
+              $set: {
+                ...normalized.data,
+                isSelected: Boolean(report.visible),
+              },
+            },
+            upsert: true,
+          },
+        };
+      })
+      .filter(Boolean);
+
+    if (!operations.length) {
+      return res.status(200).json({ data: [], pagination: null });
+    }
+
+    await FinalReport.bulkWrite(operations, { ordered: false });
+
+    const visibleFormNos = reports
+      .filter((report) => report?.visible && report.formNo !== undefined)
+      .map((report) => Number(report.formNo));
+
+    const savedReports = visibleFormNos.length
+      ? await FinalReport.find({
+          userId,
+          isSelected: true,
+          formNo: { $in: visibleFormNos },
+        })
+          .select(
+            "_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType isSelected createdAt updatedAt"
+          )
+          .sort({ formNo: 1 })
+          .lean()
+      : [];
+
+    return res.status(200).json({
+      data: savedReports,
+      pagination: null,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getSavedReports = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const reports = await FinalReport.find({ userId, isSelected: true })
+      .select("formNo")
+      .lean();
+
+    return res.status(200).json(reports);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getFinalReports = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const pagination = parsePagination(req.query);
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId missing" });
+    }
+
+    const query = FinalReport.find({ userId, isSelected: true })
+      .select("_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType isSelected createdAt updatedAt")
+      .sort({ formNo: 1 })
+      .lean();
+
+    if (pagination) {
+      query.skip(pagination.skip).limit(pagination.limit);
+    }
+
+    const reports = await query;
+
+    if (pagination) {
+      const total = await FinalReport.countDocuments({ userId, isSelected: true });
+      return res.status(200).json(
+        buildPaginatedResponse({
+          data: reports,
+          page: pagination.page,
+          limit: pagination.limit,
+          total,
+        })
+      );
+    }
+
+    return res.status(200).json(reports);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getReportOverrides = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId missing" });
+    }
+
+    const reports = await FinalReport.find({ userId })
+      .select("_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType isSelected createdAt updatedAt")
+      .sort({ formNo: 1 })
+      .lean();
+
+    return res.status(200).json(reports);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.updateReportOverride = async (req, res) => {
+  try {
+    const { userId, formNo } = req.params;
+    const normalized = normalizeReportPayload(
+      { ...req.body, formNo },
+      { includeSelection: true }
+    );
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId missing" });
+    }
+
+    if (normalized.error) {
+      return res.status(400).json({ message: normalized.error });
+    }
+
+    const report = await FinalReport.findOneAndUpdate(
+      { userId, formNo: normalized.data.formNo },
+      {
+        $set: {
+          ...normalized.data,
+          ...(req.body.isSelected !== undefined
+            ? { isSelected: normalized.data.isSelected }
+            : {}),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    return res.status(200).json(report);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.deleteReportOverride = async (req, res) => {
+  try {
+    const { userId, formNo } = req.params;
+    const normalizedFormNo = Number(formNo);
+
+    if (!userId || !Number.isFinite(normalizedFormNo) || normalizedFormNo <= 0) {
+      return res.status(400).json({ message: "Valid userId and formNo are required" });
+    }
+
+    const deleted = await FinalReport.findOneAndDelete({
+      userId,
+      formNo: normalizedFormNo,
+    }).lean();
+
+    return res.status(200).json({
+      message: deleted ? "Report override deleted" : "No saved override found",
+      deleted: !!deleted,
+      formNo: normalizedFormNo,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.updateReportCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { formNo, mistakes } = req.body;
+
+    if (!userId || formNo === undefined) {
+      return res.status(400).json({ message: "userId or formNo missing" });
+    }
+
+    const count = Number(mistakes);
+    if (!Number.isFinite(count) || count < 0) {
+      return res.status(400).json({ message: "Invalid mistakes count" });
+    }
+
+    const existing = await FinalReport.findOne({ userId, formNo, isSelected: true });
+    if (!existing) {
+      return res.status(404).json({ message: "Report not selected yet (enable Set Visible first)" });
+    }
+
+    existing.mistakes = count;
+    existing.mistakePercent = count;
+    existing.mistakePercentValue = count;
+    await existing.save();
+
+    return res.status(200).json(existing);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 exports.addToDraft = async (req, res) => {
   try {
     const { id } = req.params;
@@ -901,10 +1519,11 @@ exports.removeFromDraft = async (req, res) => {
 
 exports.getDraftUsers = async (req, res) => {
   try {
-    const drafts = await User.find({ isDraft: true })
-      .populate("packages", "name")
-      .populate("admin", "name")
-      .sort({ createdAt: -1 });
+    await syncMissingUserTotals({ isDraft: true });
+
+    const drafts = await User.aggregate(
+      buildUserListPipeline({ isDraft: true })
+    );
 
     res.json(drafts);
   } catch (err) {
@@ -916,15 +1535,24 @@ exports.declareReport = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const updated = await User.findByIdAndUpdate(
-      userId,
-      { reportDeclared: true },
-      { new: true }
-    ).select("_id reportDeclared");
+    const [updated, selectedReportsCount] = await Promise.all([
+      User.findByIdAndUpdate(
+        userId,
+        { reportDeclared: true },
+        { new: true }
+      )
+        .select("_id reportDeclared")
+        .lean(),
+      FinalReport.countDocuments({ userId, isSelected: true }),
+    ]);
 
     if (!updated) return res.status(404).json({ message: "User not found" });
 
-    return res.json(updated);
+    return res.json({
+      ...updated,
+      selectedReportsCount,
+      message: "Report declared successfully",
+    });
   } catch (err) {
     return res.status(500).json({ message: "Failed to declare report" });
   }
@@ -934,15 +1562,24 @@ exports.undeclareReport = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const updated = await User.findByIdAndUpdate(
-      userId,
-      { reportDeclared: false },
-      { new: true }
-    ).select("_id reportDeclared");
+    const [updated, selectedReportsCount] = await Promise.all([
+      User.findByIdAndUpdate(
+        userId,
+        { reportDeclared: false },
+        { new: true }
+      )
+        .select("_id reportDeclared")
+        .lean(),
+      FinalReport.countDocuments({ userId, isSelected: true }),
+    ]);
 
     if (!updated) return res.status(404).json({ message: "User not found" });
 
-    return res.json(updated);
+    return res.json({
+      ...updated,
+      selectedReportsCount,
+      message: "Report undeclared successfully",
+    });
   } catch (err) {
     return res.status(500).json({ message: "Failed to undeclare report" });
   }
