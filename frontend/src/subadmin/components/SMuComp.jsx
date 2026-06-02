@@ -1,138 +1,142 @@
-
-import React, { useEffect, useMemo, useState } from "react";
-import '../../admin/styles/ma.css';
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import React, { useCallback, useEffect, useState } from 'react';
+import '../../Admin/Styles/macomp.css';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { getPackagePageLimit } from "../../utils/packageRules";
+import { API_BASE } from "../../utils/api";
+import { getSubAdminToken } from "../../utils/auth";
+import PaginationControls from "../../components/PaginationControls";
+import { unwrapPaginatedResponse, useDebouncedValue } from "../../utils/pagination";
 
 function SMuComp() {
   const navigate = useNavigate();
-
   const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [pagination, setPagination] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const debouncedSearch = useDebouncedValue(searchTerm);
 
-  const itemsPerPage = 10;
-  const token = localStorage.getItem("token");
-
-  const getUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const res = await axios.get("https://api.freelancing-projects.com/api/sub-admin/getusers", {
-        headers: { Authorization: `Bearer ${token}` },
+      setLoading(true);
+      const token = getSubAdminToken();
+      const res = await axios.get(`${API_BASE}/sub-admin/getusers`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        params: {
+          page: currentPage,
+          limit: 10,
+          search: debouncedSearch,
+          sortBy: "date",
+          sortOrder,
+        },
       });
-
-      setUsers(Array.isArray(res.data) ? res.data : []);
+      const { data, pagination: nextPagination } = unwrapPaginatedResponse(res.data);
+      setUsers(data);
+      setPagination(nextPagination);
     } catch (err) {
-      if (err.response?.data?.message) alert(err.response.data.message);
-      else alert("Error Getting Users");
+      alert(err.response?.data?.message || 'Error fetching users');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleAcivateUser = async (id) => {
-    try {
-      await axios.put(
-        `https://api.freelancing-projects.com/api/admin/${id}/activate-user`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleDeactivateUser = async (id) => {
-    try {
-      await axios.put(
-        `https://api.freelancing-projects.com/api/admin/${id}/deactivate-user`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
+  }, [currentPage, debouncedSearch, sortOrder]);
 
   useEffect(() => {
-    getUsers();
-  }, []);
+    fetchUsers();
+  }, [fetchUsers]);
 
-  const normalize = (v) => String(v ?? "").toLowerCase().trim();
-
-  const expirySearchString = (expiry) => {
-    if (!expiry) return "";
-    const d = new Date(expiry);
-    if (Number.isNaN(d.getTime())) return "";
-
-    const locale = d.toLocaleDateString();
-
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    const dmy = `${dd}-${mm}-${yyyy}`;
-
-    const monthName = d.toLocaleString("en-US", { month: "short", year: "numeric" });
-
-    return `${locale} ${dmy} ${monthName}`.toLowerCase();
+  const handleActivate = async (id) => {
+    try {
+      await axios.put(`${API_BASE}/auth/${id}/activate`);
+      fetchUsers();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const filteredUsers = useMemo(() => {
-    const term = normalize(searchTerm);
-    if (!term) return users;
+  const handleDeactivate = async (id) => {
+    try {
+      await axios.put(`${API_BASE}/auth/${id}/deactivate`);
+      fetchUsers();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
-    return users.filter((u) => {
-      const name = normalize(u.name);
-      const email = normalize(u.email);
-      const pkg = normalize(u.packages?.name);
-      const admin = normalize(u.admin?.name);
-      const status = u.status ? "active" : "inactive";
-      const expiryStr = expirySearchString(u.expiry);
+  const exportToExcel = () => {
+    const data = users.map((u, i) => ({
+      "Sr No.": ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
+      "Name": u.name,
+      "Package Taken": u.packages?.name || 'No Package',
+      "Email": u.email,
+      "Status": u.isActive ? "Active" : "Inactive",
+      "Expiry Date": new Date(u.date).toLocaleDateString()
+    }));
 
-      // ✅ include draft status in search too
-      const draftStatus = u.isDraft ? "draft" : "not draft";
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+    XLSX.writeFile(workbook, "UsersList.xlsx");
+  };
 
-      return (
-        name.includes(term) ||
-        email.includes(term) ||
-        pkg.includes(term) ||
-        admin.includes(term) ||
-        status.includes(term) ||
-        expiryStr.includes(term) ||
-        draftStatus.includes(term)
-      );
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Users List", 14, 15);
+
+    const tableColumn = ["Sr No.", "Name", "Package Taken", "Email", "Status", "Expiry Date"];
+    const tableRows = users.map((u, i) => [
+      ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
+      u.name,
+      u.packages?.name || 'No Package',
+      u.email,
+      u.isActive ? "Active" : "Inactive",
+      new Date(u.date).toLocaleDateString()
+    ]);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185] },
     });
-  }, [users, searchTerm]);
 
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+    doc.save("UsersList.pdf");
   };
 
   return (
-    <div className="comp">
+    <div className='comp'>
       <h3>Manage Users</h3>
-
-      <div className="incomp">
-        <div className="go">
+      <div className='incomp'>
+        <div className='go'>
           <h4>All Users List</h4>
         </div>
 
-        <div className="go">
+        <div className='go'>
           <div className="mygo">
-            <p style={{ cursor: "pointer" }}>Excel</p>
-            <p style={{ cursor: "pointer" }}>PDF</p>
+            <p onClick={exportToExcel}>Excel</p>
+            <p onClick={exportToPDF}>PDF</p>
           </div>
+          <p
+            style={{ cursor: "pointer", background:'#2575fc', color:'White', padding: '10px 20px', borderRadius:'10px' }}
+            onClick={() => {
+              setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              setCurrentPage(1);
+            }}
+          >
+            Expiry: {sortOrder === "asc" ? "â†‘" : "â†“"}
+          </p>
 
           <input
-            type="text"
-            className="search"
-            placeholder="Search name / email / status / expiry date..."
+            type='text'
+            className='search'
+            placeholder='Search by name or email'
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -141,66 +145,66 @@ function SMuComp() {
           />
         </div>
 
-        <table className="mytable">
+        <table>
           <thead>
             <tr>
-              <th className="myth">Sr.No.</th>
-              <th className="myth">Name</th>
-              <th className="myth">Package</th>
-              <th className="myth">Email Id</th>
-              <th className="myth">Password</th>
-              <th className="myth">Status</th>
-              <th className="myth">Expiry</th>
-              <th className="myth">Action</th>
+              <th>Sr.No.</th>
+              <th>Name</th>
+              <th>Package Taken</th>
+              <th>Email Id</th>
+              <th>Status</th>
+              <th>Goal Status</th>
+              <th>Expiry Date</th>
+              <th>Action</th>
             </tr>
           </thead>
-
           <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((user, index) => (
-                <tr key={user._id}>
-                  <td className="mytd">{indexOfFirstItem + index + 1}</td>
-                  <td className="mytd">{user.name}</td>
-                  <td className="mytd">{user.packages?.name || "No Package"}</td>
-                  <td className="mytd">{user.email}</td>
-                  <td className="mytd">{user.password}</td>
-
-                  <td className="mytd">
-                    {user.status ? (
-                      <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
+            {loading ? (
+              <tr>
+                <td colSpan='8' style={{ textAlign: 'center', color: 'gray' }}>
+                  Loading users...
+                </td>
+              </tr>
+            ) : users.length > 0 ? (
+              users.map((u, index) => (
+                <tr key={u._id}>
+                  <td>{((pagination?.page || 1) - 1) * (pagination?.limit || 10) + index + 1}</td>
+                  <td>{u.name}</td>
+                  <td>{u.packages?.name || 'No Package'}</td>
+                  <td>{u.email}</td>
+                  <td>
+                    {u.isActive ? (
+                      <span style={{ color: 'green', fontWeight: 'bold' }}>Active</span>
                     ) : (
-                      <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
+                      <span style={{ color: 'red', fontWeight: 'bold' }}>Inactive</span>
                     )}
                   </td>
-
-                  <td className="mytd">
-                    {user.expiry ? new Date(user.expiry).toLocaleDateString() : "-"}
-                  </td>
-
-                  <td className="mybtnnns">
-                    
-
-                    
-
-                    {user.status ? (
-                      <button className="inactive" onClick={() => handleDeactivateUser(user._id)}>
+                  <td>{(u.completedPages ?? u.currentIndex ?? 0)}/{getPackagePageLimit(u.packages)}</td>
+                  <td>{new Date(u.date).toLocaleDateString()}</td>
+                  <td className='mybtnnns'>
+                    {u.isActive ? (
+                      <button className='inactive' onClick={() => handleDeactivate(u._id)}>
                         Deactivate
                       </button>
                     ) : (
-                      <button className="active" onClick={() => handleAcivateUser(user._id)}>
+                      <button className='active' onClick={() => handleActivate(u._id)}>
                         Activate
                       </button>
                     )}
-
-                    
-
-                    
+                    <button
+                      className='report'
+                      onClick={() =>
+                        navigate('/sub-admin/manage-user/result', { state: { user: u } })
+                      }
+                    >
+                      Report
+                    </button>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
+                <td colSpan='8' style={{ textAlign: 'center', color: 'gray' }}>
                   No users found
                 </td>
               </tr>
@@ -208,27 +212,7 @@ function SMuComp() {
           </tbody>
         </table>
 
-        {filteredUsers.length > 0 && (
-          <div className="pagination-container">
-            <div className="pagination">
-              <button onClick={() => goToPage(1)} disabled={currentPage === 1}>
-                «
-              </button>
-              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
-                ‹
-              </button>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
-                ›
-              </button>
-              <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages}>
-                »
-              </button>
-            </div>
-          </div>
-        )}
+        <PaginationControls pagination={pagination} onPageChange={setCurrentPage} />
       </div>
     </div>
   );

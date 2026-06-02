@@ -1,524 +1,616 @@
-import React, { useEffect, useMemo, useState } from "react";
-import "../styles/ma.css";
+import React, { useCallback, useEffect, useState } from "react";
+import "../Styles/mucomp.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getPackagePageLimit } from "../../utils/packageRules";
+import { API_BASE } from "../../utils/api";
+import PaginationControls from "../../components/PaginationControls";
+import { unwrapPaginatedResponse, useDebouncedValue } from "../../utils/pagination";
+
+/* ─── helpers ─────────────────────────────────────────────────── */
 
 const dropItemStyle = {
-  padding: "9px 16px",
+  padding: "8px 12px",
+  fontSize: "12px",
+  color: "#334155",
+  borderRadius: "7px",
   cursor: "pointer",
-  fontSize: 13,
-  color: "#111827",
-  borderBottom: "1px solid #f3f4f6",
-  userSelect: "none",
-  whiteSpace: "nowrap",
+  borderBottom: "1px solid #f1f5f9",
+  transition: "background .12s",
 };
+
+/** Two-letter initials from a full name */
+function getInitials(name = "") {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** Pick an avatar colour class based on first char of name */
+const AVATAR_CLASSES = ["av-green", "av-purple", "av-amber", "av-red", "av-teal", ""];
+function avatarClass(name = "") {
+  const idx = (name.charCodeAt(0) || 0) % AVATAR_CLASSES.length;
+  return AVATAR_CLASSES[idx];
+}
+
+/* ─── component ───────────────────────────────────────────────── */
 
 function MuComp() {
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState(null);
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [users, setUsers]                     = useState([]);
+  const [searchTerm, setSearchTerm]           = useState("");
+  const [currentPage, setCurrentPage]         = useState(1);
+  const [sortField, setSortField]             = useState("_id");
+const [sortOrder, setSortOrder]                = useState("asc");
   const [openActionDropdown, setOpenActionDropdown] = useState(null);
+  const [pagination, setPagination]           = useState(null);
+  const [loading, setLoading]                 = useState(false);
+  const [activeFilter, setActiveFilter]       = useState("all"); // "all" | "active" | "inactive"
+  const [stats, setStats]                     = useState(null);  // optional stats endpoint
 
-  const itemsPerPage = 10;
-  const token = localStorage.getItem("token");
+  const debouncedSearch = useDebouncedValue(searchTerm);
 
-  // ── close dropdown on outside click ──────────────────────────
+  const admin = JSON.parse(localStorage.getItem("admin") || "{}");
+  const role  = admin?.role;
+
+  /* close dropdown on outside click */
   useEffect(() => {
-    const handleClickOutside = () => setOpenActionDropdown(null);
-    if (openActionDropdown) {
-      document.addEventListener("click", handleClickOutside);
-    }
-    return () => document.removeEventListener("click", handleClickOutside);
+    const close = () => setOpenActionDropdown(null);
+    if (openActionDropdown) document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
   }, [openActionDropdown]);
 
-  // ── API calls ─────────────────────────────────────────────────
-  const getUsers = async () => {
+  /* ── fetch ── */
+  const fetchUsers = useCallback(async () => {
     try {
-      const res = await axios.get("https://api.freelancing-projects.com/api/admin/get-users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUsers(Array.isArray(res.data) ? res.data : []);
+      setLoading(true);
+      const params = {
+        page:      currentPage,
+        limit:     10,
+        search:    debouncedSearch,
+        sortBy:    sortField,
+        sortOrder,
+      };
+      if (activeFilter !== "all") params.isActive = activeFilter === "active";
+
+      const res = await axios.get(`${API_BASE}/auth/all-users`, { params });
+      const { data, pagination: nextPagination } = unwrapPaginatedResponse(res.data);
+      setUsers(data);
+      setPagination(nextPagination);
+
+      /* optional: derive stats from the response if your API returns them */
+      if (res.data?.stats) setStats(res.data.stats);
     } catch (err) {
-      alert(err.response?.data?.message || "Error Getting Users");
+      alert(err.response?.data?.message || "Error fetching users");
+    } finally {
+      setLoading(false);
     }
+  }, [currentPage, debouncedSearch, sortField, sortOrder, activeFilter]);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  /* ── helpers ── */
+  const formatDate = (value) =>
+    value ? new Date(value).toLocaleDateString("en-IN", {  month: "short",day: "2-digit", year: "numeric" }) : "—";
+
+  const getWorkTags = (user) => {
+    const tags = [];
+    tags.push(user.isComplete === false
+      ? { label: "Incomplete", tone: "danger" }
+      : { label: "Complete",   tone: "success" });
+    if (user.softwareUsed) tags.push({ label: "Software Used",   tone: "accent"  });
+    if (user.notInSequence) tags.push({ label: "Not In Sequence", tone: "warning" });
+    return tags;
   };
 
-  const handleAcivateUser = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/activate-user`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
+  const progressPercent = (user) => {
+    const done  = user.completedPages ?? user.currentIndex ?? 0;
+    const total = getPackagePageLimit(user.packages) || 1;
+    return Math.min(100, Math.round((done / total) * 100));
   };
 
-  const handleDeactivateUser = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/deactivate-user`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
+  /* ── optimistic state patch ── */
+  const patchUserInState = (id, patch) =>
+    setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, ...patch } : u)));
+
+  /* ── action handlers ── */
+  const handleActivate   = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/activate`);   patchUserInState(id, { isActive: true  }); } catch (e) { alert(e.response?.data?.message || e.message); } };
+  const handleDeactivate = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/deactivate`); patchUserInState(id, { isActive: false }); } catch (e) { alert(e.response?.data?.message || e.message); } };
+
+  const handleAddToDraft      = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/add-to-drafts`);      patchUserInState(id, { isDraft: true  }); } catch (e) { alert(e.response?.data?.message || e.message); } };
+  const handleRemoveFromDraft = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/remove-from-drafts`); patchUserInState(id, { isDraft: false }); } catch (e) { alert(e.response?.data?.message || e.message); } };
+
+  const handleMarkComplete   = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/mark-complete`);   patchUserInState(id, { isComplete: true  }); setOpenActionDropdown(null); } catch (e) { alert(e.response?.data?.message || e.message); } };
+  const handleMarkIncomplete = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/mark-incomplete`); patchUserInState(id, { isComplete: false }); setOpenActionDropdown(null); } catch (e) { alert(e.response?.data?.message || e.message); } };
+
+  const handleMarkSoftwareUsed   = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/mark-software-used`);   patchUserInState(id, { softwareUsed: true  }); setOpenActionDropdown(null); } catch (e) { alert(e.response?.data?.message || e.message); } };
+  const handleUnmarkSoftwareUsed = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/unmark-software-used`); patchUserInState(id, { softwareUsed: false }); setOpenActionDropdown(null); } catch (e) { alert(e.response?.data?.message || e.message); } };
+
+  const handleMarkNotInSequence   = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/mark-not-in-sequence`);   patchUserInState(id, { notInSequence: true  }); setOpenActionDropdown(null); } catch (e) { alert(e.response?.data?.message || e.message); } };
+  const handleUnmarkNotInSequence = async (id) => { try { await axios.put(`${API_BASE}/auth/${id}/unmark-not-in-sequence`); patchUserInState(id, { notInSequence: false }); setOpenActionDropdown(null); } catch (e) { alert(e.response?.data?.message || e.message); } };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try { await axios.delete(`${API_BASE}/auth/${id}/delete`); fetchUsers(); }
+    catch (err) { alert(err.response?.data?.message || "Server error"); }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure to delete this user?")) return;
-    try {
-      await axios.delete(`https://api.freelancing-projects.com/api/admin/${id}/delete-user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleAddToDraft = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/add-to-draft`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleMarkIncomplete = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/mark-incomplete`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleMarkComplete = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/mark-complete`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleMarkSoftwareUsed = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/mark-software-used`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleUnmarkSoftwareUsed = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/unmark-software-used`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleMarkNotInSequence = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/mark-not-in-sequence`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleUnmarkNotInSequence = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/unmark-not-in-sequence`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
-
-  useEffect(() => {
-    getUsers();
-  }, []);
-
-  // ── Export ────────────────────────────────────────────────────
+  /* ── exports ── */
   const exportToExcel = () => {
-    if (!sortedUsers.length) return alert("No users to export");
-    const data = sortedUsers.map((u, i) => ({
-      "Sr.No.": i + 1,
-      Name: u.name || "",
-      Package: u.packages?.name || "No Package",
-      Admin: u.admin?.name || "-",
-      Email: u.email || "",
-      Password: u.password || "",
-      Status: u.status ? "Active" : "Inactive",
-      Expiry: u.expiry ? new Date(u.expiry).toLocaleDateString() : "-",
-      "Goal Status": u.goal ? `${u.totalFormsDone || 0}/${u.goal}` : "-",
+    const data = users.map((u, i) => ({
+      "Sr No.":         ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
+      Name:             u.name,
+      Admin:            u.admin?.name || "No Admin",
+      "Package Taken":  u.packages?.name || "No Package",
+      Email:            u.email,
+      Password:         u.password || "—",
+      Status:           u.isActive ? "Active" : "Inactive",
+      Work:             u.isComplete === false ? "Incomplete" : "Complete",
+      "Software Used":  u.softwareUsed ? "Yes" : "No",
+      "Not In Sequence": u.notInSequence ? "Yes" : "No",
+      Draft:            u.isDraft ? "Yes" : "No",
+      "Expiry Date":    formatDate(u.date),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Users");
-    XLSX.writeFile(wb, "users_list.xlsx");
+    XLSX.writeFile(wb, "UsersList.xlsx");
   };
 
   const exportToPDF = () => {
-    if (!sortedUsers.length) return alert("No users to export");
-    const doc = new jsPDF("l", "pt", "a4");
-    doc.text("Users List", 40, 30);
-    const head = [["Sr.No.", "Name", "Package", "Admin", "Email", "Password", "Status", "Expiry", "Goal Status"]];
-    const body = sortedUsers.map((u, i) => ([
-      i + 1, u.name || "", u.packages?.name || "No Package", u.admin?.name || "-",
-      u.email || "", u.password || "", u.status ? "Active" : "Inactive",
-      u.expiry ? new Date(u.expiry).toLocaleDateString() : "-",
-      u.goal ? `${u.totalFormsDone || 0}/${u.goal}` : "-",
-    ]));
-    autoTable(doc, { head, body, startY: 50, styles: { fontSize: 8 }, headStyles: { fontSize: 8 } });
-    doc.save("users_list.pdf");
-  };
-
-  // ── Filter + Sort ─────────────────────────────────────────────
-  const normalize = (v) => String(v ?? "").toLowerCase().trim();
-
-  const expirySearchString = (expiry) => {
-    if (!expiry) return "";
-    const d = new Date(expiry);
-    if (Number.isNaN(d.getTime())) return "";
-    const locale = d.toLocaleDateString();
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    const dmy = `${dd}-${mm}-${yyyy}`;
-    const monthName = d.toLocaleString("en-US", { month: "short", year: "numeric" });
-    return `${locale} ${dmy} ${monthName}`.toLowerCase();
-  };
-
-  const filteredUsers = useMemo(() => {
-    const term = normalize(searchTerm);
-    if (!term) return users;
-    return users.filter((u) => {
-      const name = normalize(u.name);
-      const email = normalize(u.email);
-      const pkg = normalize(u.packages?.name);
-      const admin = normalize(u.admin?.name);
-      const status = u.status ? "active" : "inactive";
-      const expiryStr = expirySearchString(u.expiry);
-      const draftStatus = u.isDraft ? "draft" : "not draft";
-      return (
-        name.includes(term) || email.includes(term) || pkg.includes(term) ||
-        admin.includes(term) || status.includes(term) || expiryStr.includes(term) ||
-        draftStatus.includes(term)
-      );
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.text("Users List", 14, 15);
+    autoTable(doc, {
+      startY: 25,
+      head: [["Sr No.", "Name", "Admin", "Package", "Email", "Status", "Work", "Draft", "Expiry"]],
+      body: users.map((u, i) => [
+        ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
+        u.name,
+        u.admin?.name || "No Admin",
+        u.packages?.name || "No Package",
+        u.email,
+        u.isActive ? "Active" : "Inactive",
+        u.isComplete === false ? "Incomplete" : "Complete",
+        u.isDraft ? "Yes" : "No",
+        formatDate(u.date),
+      ]),
+      theme: "grid",
+      styles:     { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: [37, 117, 252] },
     });
-  }, [users, searchTerm]);
-
-  const sortedUsers = useMemo(() => {
-    if (sortField !== "expiry") return filteredUsers;
-    const copy = [...filteredUsers];
-    copy.sort((a, b) => {
-      const A = a.expiry ? new Date(a.expiry).getTime() : 0;
-      const B = b.expiry ? new Date(b.expiry).getTime() : 0;
-      return sortOrder === "asc" ? A - B : B - A;
-    });
-    return copy;
-  }, [filteredUsers, sortField, sortOrder]);
-
-  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage) || 1;
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedUsers.slice(indexOfFirstItem, indexOfLastItem);
-
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+    doc.save("UsersList.pdf");
   };
 
-  const toggleExpirySort = () => {
-    setSortField("expiry");
-    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-    setCurrentPage(1);
-  };
+  /* ── derived stats (fallback computed from current page) ── */
+  const totalUsers    = pagination?.total ?? users.length;
+  const activeCount   = stats?.active   ?? users.filter((u) => u.isActive).length;
+  const inactiveCount = stats?.inactive ?? users.filter((u) => !u.isActive).length;
+  const incompleteCount = stats?.incomplete ?? users.filter((u) => u.isComplete === false).length;
+  const draftCount    = stats?.drafts   ?? users.filter((u) => u.isDraft).length;
 
-  // ── Render ────────────────────────────────────────────────────
+  /* ─────────────────────────────────────────────────────────────
+     RENDER
+  ───────────────────────────────────────────────────────────── */
+  const getPageNumbers = () => {
+  if (!pagination) return [];
+
+  const totalPages =
+    pagination.totalPages || Math.ceil(pagination.total / pagination.limit);
+  const page = pagination.page;
+
+  const pages = [];
+
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+    return pages;
+  }
+
+  pages.push(1);
+
+  if (page > 3) pages.push("left-ellipsis");
+
+  const start = Math.max(2, page - 1);
+  const end = Math.min(totalPages - 1, page + 1);
+
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (page < totalPages - 2) pages.push("right-ellipsis");
+
+  pages.push(totalPages);
+
+  return pages;
+};
   return (
-    <div className="comp">
-      <h3>Manage Users</h3>
+    <section className="mu-page">
 
-      <div className="incomp">
-        <div className="go">
-          <h4>All Users List</h4>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="type" onClick={() => navigate("/admin/manage-user/add-user")}>
+      {/* ── Page header ── */}
+      <div className="mu-page-header">
+        <div className="mu-page-header-left">
+          <div className="mu-breadcrumb">
+            Admin / <span>Manage Users</span>
+          </div>
+          <h3 className="mu-page-title">Manage Users</h3>
+        </div>
+
+        <div className="mu-page-header-actions">
+          {role === "superadmin" && (
+            <button
+              className="mu-button mu-button-primary"
+              onClick={() => navigate("/admin/manage-user/add-user")}
+            >
               + Add User
             </button>
-            <button className="type" onClick={() => navigate("/admin/drafts")}>
-              Drafts
+          )}
+          <button
+            className="mu-button mu-button-ghost"
+            onClick={() => navigate("/admin/drafts")}
+          >
+            Drafts
+          </button>
+        </div>
+      </div>
+
+      {/* ── Stats strip ── */}
+      <div className="mu-stats-grid">
+        <div className="mu-stat-card">
+          <div className="mu-stat-label">
+            <span className="mu-stat-dot" style={{ background: "#2575fc" }} />
+            Total Users
+          </div>
+          <div className="mu-stat-value">{totalUsers}</div>
+          <div className="mu-stat-sub">across all admins</div>
+        </div>
+
+        <div className="mu-stat-card">
+          <div className="mu-stat-label">
+            <span className="mu-stat-dot" style={{ background: "#15803d" }} />
+            Active
+          </div>
+          <div className="mu-stat-value">{activeCount}</div>
+          <div className="mu-stat-sub">
+            {totalUsers ? Math.round((activeCount / totalUsers) * 100) : 0}% of total
+          </div>
+        </div>
+
+        <div className="mu-stat-card">
+          <div className="mu-stat-label">
+            <span className="mu-stat-dot" style={{ background: "#b91c1c" }} />
+            Inactive
+          </div>
+          <div className="mu-stat-value">{inactiveCount}</div>
+          <div className="mu-stat-sub">
+            {totalUsers ? Math.round((inactiveCount / totalUsers) * 100) : 0}% of total
+          </div>
+        </div>
+
+        <div className="mu-stat-card">
+          <div className="mu-stat-label">
+            <span className="mu-stat-dot" style={{ background: "#92400e" }} />
+            Incomplete
+          </div>
+          <div className="mu-stat-value">{incompleteCount}</div>
+          <div className="mu-stat-sub">need attention</div>
+        </div>
+
+        <div className="mu-stat-card">
+          <div className="mu-stat-label">
+            <span className="mu-stat-dot" style={{ background: "#6d28d9" }} />
+            In Drafts
+          </div>
+          <div className="mu-stat-value">{draftCount}</div>
+          <div className="mu-stat-sub">awaiting review</div>
+        </div>
+      </div>
+
+      {/* ── Main panel ── */}
+      <div className="mu-panel">
+
+        {/* toolbar top */}
+        <div className="mu-toolbar-top">
+          <div className="mu-title-group">
+            <h4>All Users List</h4>
+            <span>{totalUsers} records found</span>
+          </div>
+          <div className="mu-top-actions">
+            <button className="mu-button mu-button-ghost" onClick={exportToExcel}>
+              ↓ Excel
+            </button>
+            <button className="mu-button mu-button-ghost" onClick={exportToPDF}>
+              ↓ PDF
             </button>
           </div>
         </div>
 
-        <div className="go">
-          <div className="mygo">
-            <p style={{ cursor: "pointer" }} onClick={exportToExcel}>Excel</p>
-            <p style={{ cursor: "pointer" }} onClick={exportToPDF}>PDF</p>
+        {/* toolbar bottom */}
+        <div className="mu-toolbar-bottom">
+          {/* sort */}
+    <button
+  className="mu-button mu-button-sort"
+  onClick={() => {
+    setSortField("createdAt");
+    setSortOrder("asc");
+    setCurrentPage(1);
+  }}
+  title="Sort by added date"
+>
+  Added Date ↑
+</button>
+
+<button
+  className="mu-button mu-button-sort"
+  onClick={() => {
+    setSortField("date");
+    setSortOrder("desc");
+    setCurrentPage(1);
+  }}
+  title="Sort by expiry date"
+>
+  Expiry ↓
+</button>
+
+          {/* filter pills */}
+          <div className="mu-filter-pills">
+            {["all", "active", "inactive"].map((f) => (
+              <button
+                key={f}
+                className={`mu-pill-filter${activeFilter === f ? " is-active-filter" : ""}`}
+                onClick={() => { setActiveFilter(f); setCurrentPage(1); }}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
           </div>
-          <p
-            style={{
-              cursor: "pointer", background: "green", color: "white",
-              padding: "10px 20px", borderRadius: "10px", margin: 0, userSelect: "none",
-            }}
-            onClick={toggleExpirySort}
-            title="Sort by expiry date"
-          >
-            Expiry: {sortOrder === "asc" ? "↑" : "↓"}
-          </p>
-          <input
-            type="text"
-            className="search"
-            placeholder="Search name / email / status / expiry date..."
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-          />
+
+          {/* search */}
+          <div className="mu-search-wrap">
+            <span className="mu-search-icon" aria-hidden="true">🔍</span>
+            <input
+              type="text"
+              className="mu-search"
+              placeholder="Search name, email, admin, package, status…"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            />
+          </div>
         </div>
 
-        <div className="table-wrapperr">
-          <table className="mytable">
+        {/* table */}
+        <div className="mu-table-wrapper">
+          <table className="mu-table">
             <thead>
               <tr>
-                <th className="myth">Sr.No.</th>
-                <th className="myth">Name</th>
-                <th className="myth">Package</th>
-                <th className="myth">Admin</th>
-                <th className="myth">Email Id</th>
-                <th className="myth">Password</th>
-                <th className="myth">Status</th>
-                <th className="myth">Work</th>
-                <th className="myth">Expiry</th>
-                <th className="myth">Goal Status</th>
-                <th className="myth">Action</th>
+                <th>#</th>
+                <th>User</th>
+                <th>Admin</th>
+                <th>Package</th>
+                <th>Email</th>
+                <th>Password</th>
+                <th>Status</th>
+                <th>Work</th>
+                <th>Progress</th>
+                <th>Expiry</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {currentItems.length > 0 ? (
-                currentItems.map((user, index) => (
-                  <tr key={user._id}>
-                    <td className="mytd">{indexOfFirstItem + index + 1}</td>
-                    <td className="mytd">{user.name}</td>
-                    <td className="mytd">{user.packages?.name || "No Package"}</td>
-                    <td className="mytd">{user.admin?.name || "-"}</td>
-                    <td className="mytd">{user.email}</td>
-                    <td className="mytd">{user.password}</td>
-
-                    {/* Status */}
-                    <td className="mytd">
-                      {user.status ? (
-                        <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
-                      ) : (
-                        <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
-                      )}
-                    </td>
-
-                    {/* Work column — shows all 3 flags */}
-                    <td className="mytd">
-                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        {user.isComplete === false && (
-                          <span style={{ color: "#b91c1c", fontWeight: "bold", fontSize: 12 }}>
-                            Incomplete
-                          </span>
-                        )}
-                        {user.softwareUsed && (
-                          <span style={{ color: "#7c3aed", fontWeight: "bold", fontSize: 12 }}>
-                            Software Used
-                          </span>
-                        )}
-                        {user.notInSequence && (
-                          <span style={{ color: "#d97706", fontWeight: "bold", fontSize: 12 }}>
-                            Not In Sequence
-                          </span>
-                        )}
-                        {user.isComplete !== false && !user.softwareUsed && !user.notInSequence && (
-                          <span style={{ color: "#065f46", fontWeight: "bold", fontSize: 12 }}>
-                            Complete
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="mytd">
-                      {user.expiry ? new Date(user.expiry).toLocaleDateString() : "-"}
-                    </td>
-
-                    <td className="mytd">
-                      {user.goal ? `${user.totalFormsDone || 0}/${user.goal}` : "-"}
-                    </td>
-
-                    {/* Action */}
-                    <td className="mybtnnns">
-                      <button
-                        className="edit"
-                        onClick={() => navigate("/admin/manage-user/add-user", { state: { userToEdit: user } })}
-                      >
-                        Edit
-                      </button>
-
-                      <button className="delete" onClick={() => handleDeleteUser(user._id)}>
-                        Delete
-                      </button>
-
-                      {user.status ? (
-                        <button className="inactive" onClick={() => handleDeactivateUser(user._id)}>
-                          Deactivate
-                        </button>
-                      ) : (
-                        <button className="active" onClick={() => handleAcivateUser(user._id)}>
-                          Activate
-                        </button>
-                      )}
-
-                      {user.isDraft ? (
-                        <button className="inactive" disabled title="This user is already in Drafts">
-                          In Draft
-                        </button>
-                      ) : (
-                        <button className="active" onClick={() => handleAddToDraft(user._id)}>
-                          Add to Draft
-                        </button>
-                      )}
-
-                      {/* ── Work Status Dropdown ── */}
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ position: "relative", display: "inline-block" }}
-                      >
-                        <button
-                          className="inactive"
-                          onClick={() =>
-                            setOpenActionDropdown(
-                              openActionDropdown === user._id ? null : user._id
-                            )
-                          }
-                        >
-                          Work Status ▾
-                        </button>
-
-                        {openActionDropdown === user._id && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "110%",
-                              left: 0,
-                              zIndex: 999,
-                              background: "#fff",
-                              border: "1px solid #e5e7eb",
-                              borderRadius: 8,
-                              boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
-                              minWidth: 200,
-                              padding: "4px 0",
-                            }}
-                          >
-                            {/* Mark Incomplete / Mark Complete */}
-                            {user.isComplete === false ? (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleMarkComplete(user._id)}
-                              >
-                                ✅ Mark Complete
-                              </div>
-                            ) : (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleMarkIncomplete(user._id)}
-                              >
-                                ⚠️ Mark Incomplete
-                              </div>
-                            )}
-
-                            {/* Software Used */}
-                            {user.softwareUsed ? (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleUnmarkSoftwareUsed(user._id)}
-                              >
-                                🔓 Unmark Software Used
-                              </div>
-                            ) : (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleMarkSoftwareUsed(user._id)}
-                              >
-                                💻 Mark Software Used
-                              </div>
-                            )}
-
-                            {/* Not In Sequence */}
-                            {user.notInSequence ? (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleUnmarkNotInSequence(user._id)}
-                              >
-                                🔓 Unmark Not In Sequence
-                              </div>
-                            ) : (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleMarkNotInSequence(user._id)}
-                              >
-                                🔀 Mark Not In Sequence
-                              </div>
-                            )}
-
-                            <div
-                              style={{ ...dropItemStyle, color: "#9ca3af", fontSize: 12, borderBottom: "none" }}
-                              onClick={() => setOpenActionDropdown(null)}
-                            >
-                              ✕ Close
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        className="report"
-                        onClick={() => navigate("/admin/manage-user/report", { state: { user: user } })}
-                      >
-                        Report
-                      </button>
-                    </td>
+              {loading ? (
+                /* skeleton rows */
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 11 }).map((__, j) => (
+                      <td key={j}>
+                        <div className="mu-skeleton" style={{ width: j === 0 ? 24 : "80%" }} />
+                      </td>
+                    ))}
                   </tr>
                 ))
+              ) : users.length > 0 ? (
+                users.map((u, index) => {
+                  const srNo = ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + index + 1;
+                  const done  = u.completedPages ?? u.currentIndex ?? 0;
+                  const total = getPackagePageLimit(u.packages);
+                  const pct   = progressPercent(u);
+
+                  return (
+                    <tr key={u._id}>
+                      {/* # */}
+                      <td className="mu-cell-center mu-text-muted">{srNo}</td>
+
+                      {/* user */}
+                      <td>
+                        <div className="mu-name-cell">
+                          <div className={`mu-avatar ${avatarClass(u.name)}`}>
+                            {getInitials(u.name)}
+                          </div>
+                          <div>
+                            <div className="mu-name-text">{u.name}</div>
+                            {u.isDraft && <span className="mu-name-draft">In Draft</span>}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* admin */}
+                      <td className="mu-text-muted">{u.admin?.name || "No Admin"}</td>
+
+                      {/* package */}
+                      <td>
+                        <span className="mu-pkg-pill">
+                          {u.packages?.name || "No Package"}
+                        </span>
+                      </td>
+
+                      {/* email */}
+                      <td className="mu-nowrap mu-text-muted">{u.email}</td>
+
+                      {/* password */}
+                      <td className="mu-password-cell">{u.password || "—"}</td>
+
+                      {/* status */}
+                      <td className="mu-cell-center">
+                        <span className={`mu-status ${u.isActive ? "is-active" : "is-inactive"}`}>
+                          {u.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+
+                      {/* work tags */}
+                      <td>
+                        <div className="mu-work-tags">
+                          {getWorkTags(u).map((tag) => (
+                            <span key={tag.label} className={`mu-tag mu-tag-${tag.tone}`}>
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+
+                      {/* progress */}
+                      <td>
+                        <div className="mu-progress-wrap">
+                          <div className="mu-progress-bar">
+                            <div className="mu-progress-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="mu-progress-text">{done}/{total}</span>
+                        </div>
+                      </td>
+
+                      {/* expiry */}
+                      <td className="mu-nowrap mu-text-muted">{formatDate(u.date)}</td>
+
+                      {/* actions */}
+                      <td>
+                        <div className="mu-actions-cell">
+                          {role === "superadmin" && (
+                            <>
+                              <button
+                                className="mu-action-button edit"
+                                onClick={() =>
+                                  navigate("/admin/manage-user/add-user", { state: { userToEdit: u } })
+                                }
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="mu-action-button delete icon-only"
+                                title="Delete user"
+                                onClick={() => handleDelete(u._id)}
+                              >
+                                🗑
+                              </button>
+                            </>
+                          )}
+
+                          {/* activate / deactivate */}
+                          {u.isActive ? (
+                            <button className="mu-action-button inactive" onClick={() => handleDeactivate(u._id)}>
+                              Deactivate
+                            </button>
+                          ) : (
+                            <button className="mu-action-button active" onClick={() => handleActivate(u._id)}>
+                              Activate
+                            </button>
+                          )}
+
+                          {/* draft toggle */}
+                          {u.isDraft ? (
+                            <button
+                              className="mu-action-button inactive"
+                              onClick={() => handleRemoveFromDraft(u._id)}
+                              title="Remove from drafts"
+                            >
+                              In Draft
+                            </button>
+                          ) : (
+                            <button
+                              className="mu-action-button active"
+                              onClick={() => handleAddToDraft(u._id)}
+                            >
+                              Add Draft
+                            </button>
+                          )}
+
+                          {/* work status dropdown */}
+                          <div className="mu-dropdown" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="mu-action-button inactive"
+                              onClick={() =>
+                                setOpenActionDropdown(openActionDropdown === u._id ? null : u._id)
+                              }
+                            >
+                              Work ▾
+                            </button>
+
+                            {openActionDropdown === u._id && (
+                              <div className="mu-dropdown-menu">
+                                {u.isComplete === false ? (
+                                  <div className="mu-drop-item" onClick={() => handleMarkComplete(u._id)}>
+                                    ✓ Mark Complete
+                                  </div>
+                                ) : (
+                                  <div className="mu-drop-item" onClick={() => handleMarkIncomplete(u._id)}>
+                                    ✗ Mark Incomplete
+                                  </div>
+                                )}
+
+                                {u.softwareUsed ? (
+                                  <div className="mu-drop-item" onClick={() => handleUnmarkSoftwareUsed(u._id)}>
+                                    Unmark Software Used
+                                  </div>
+                                ) : (
+                                  <div className="mu-drop-item" onClick={() => handleMarkSoftwareUsed(u._id)}>
+                                    Mark Software Used
+                                  </div>
+                                )}
+
+                                {u.notInSequence ? (
+                                  <div className="mu-drop-item" onClick={() => handleUnmarkNotInSequence(u._id)}>
+                                    Unmark Not In Sequence
+                                  </div>
+                                ) : (
+                                  <div className="mu-drop-item" onClick={() => handleMarkNotInSequence(u._id)}>
+                                    Mark Not In Sequence
+                                  </div>
+                                )}
+
+                                <div
+                                  className="mu-drop-item close"
+                                  onClick={() => setOpenActionDropdown(null)}
+                                >
+                                  Close
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* report */}
+                          <button
+                            className="mu-action-button report"
+                            title="View report"
+                            onClick={() =>
+                              navigate("/admin/manage-user/result", { state: { user: u } })
+                            }
+                          >
+                            Report
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan="11" style={{ textAlign: "center", color: "gray" }}>
-                    No users found
+                  <td colSpan="11">
+                    <div className="mu-empty-state">
+                      <div className="mu-empty-icon">👤</div>
+                      No users found
+                    </div>
                   </td>
                 </tr>
               )}
@@ -526,19 +618,57 @@ function MuComp() {
           </table>
         </div>
 
-        {sortedUsers.length > 0 && (
-          <div className="pagination-container">
-            <div className="pagination">
-              <button onClick={() => goToPage(1)} disabled={currentPage === 1}>«</button>
-              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>‹</button>
-              <span>Page {currentPage} of {totalPages}</span>
-              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>›</button>
-              <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages}>»</button>
-            </div>
-          </div>
-        )}
-      </div>
+        {/* pagination */}
+       {/* pagination */}
+{pagination && (
+  <div className="mu-pagination-wrap">
+    <span className="mu-pagination-info">
+      Showing {((pagination.page - 1) * pagination.limit) + 1}–
+      {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} users
+    </span>
+
+    <div className="mu-page-number-wrap">
+      <button
+        className="mu-page-arrow-btn"
+        disabled={pagination.page <= 1}
+        onClick={() => setCurrentPage(pagination.page - 1)}
+      >
+        ‹
+      </button>
+
+      {getPageNumbers().map((pageItem, index) =>
+        typeof pageItem === "string" ? (
+          <span key={pageItem + index} className="mu-page-ellipsis">
+            ...
+          </span>
+        ) : (
+          <button
+            key={pageItem}
+            className={`mu-page-number-btn ${
+              pagination.page === pageItem ? "is-active-page" : ""
+            }`}
+            onClick={() => setCurrentPage(pageItem)}
+          >
+            {pageItem}
+          </button>
+        )
+      )}
+
+      <button
+        className="mu-page-arrow-btn"
+        disabled={
+          pagination.page >=
+          (pagination.totalPages || Math.ceil(pagination.total / pagination.limit))
+        }
+        onClick={() => setCurrentPage(pagination.page + 1)}
+      >
+        ›
+      </button>
     </div>
+  </div>
+)}
+      </div>
+    </section>
   );
 }
 

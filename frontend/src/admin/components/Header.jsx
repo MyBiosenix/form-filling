@@ -1,64 +1,73 @@
-import React, { useState,useEffect } from 'react'
-import {FiMenu, FiUser} from 'react-icons/fi'
-import { useNavigate } from 'react-router-dom'
-import '../../user/styles/header.css'
+import React, { useEffect, useState } from 'react'
 import { FaUser, FaUserShield, FaUsers, FaBoxOpen, FaQuestionCircle, FaUserCheck, FaUserTimes,FaTachometerAlt, FaSignOutAlt, FaKey, FaUserCircle } from 'react-icons/fa'
+import { FiMenu } from 'react-icons/fi'
+import '../../User/Styles/header.css'
+import { useNavigate } from 'react-router-dom'
+import { clearAdminSession } from '../../utils/auth';
 
 function Header() {
-    const [open, setOpen] = useState(false);
-    const [showDropdown, setShowDropdown] = useState(false);
+    const navigate = useNavigate();
+    const [ open, setOpen ] = useState(false);
+    const [ showDropdown, setShowDropdown ] = useState(false);
+    const [ adminName, setAdminName ] = useState('');
+    const [ adminRole, setAdminRole ] = useState('');
 
-    const [adminName, setAdminName] = useState('');
-    const [adminRole, setAdminRole] = useState('');
-
-    useEffect(()=>{
-        const admin = JSON.parse(localStorage.getItem('admin'));
-        if(admin){
-            setAdminName(admin.name);
-            setAdminRole(admin.role);
+    useEffect(() => {
+        const adminData = JSON.parse(localStorage.getItem('admin'));
+        if(adminData && adminData.name){
+            setAdminName(adminData.name);
+        }
+        if(adminData && adminData.role){
+            setAdminRole(adminData.role);
         }
     },[])
 
-    const navigate = useNavigate();
+    const handleLogout = async() => {
 
-    const handleLogout = () => {
-        if(!window.confirm("Do you really want to logout?")) return;
-        localStorage.removeItem('admin');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminId');
-        navigate('/admin/login');
+        const confirmLogout = window.confirm("Do you really want to log out?");
+
+        if(confirmLogout){
+            clearAdminSession();
+            navigate('/admin/login');
+        }
     }
   return (
     <div>
         <div className='myheader'>
-            <div className='head1'>
-                <FiMenu className='menu' onClick={()=>setOpen(!open)}/>
-                <h3>DATA MANAGEMENT SOFTWARE</h3>
+            <div className='in1'>
+                <FiMenu className='menu' onClick={() => setOpen(!open)}/>
+                <h3>KeyTrack</h3>
             </div>
-            <div className='head2' onClick={()=> setShowDropdown(!showDropdown)}>
-                <FiUser className='user'/>
-                <div className='inhead'>
-                    <p className='uname'>{adminName}</p>
-                    <p className='uu'>{adminRole}</p>
+            <div className='in-header' onClick={() => setShowDropdown(!showDropdown)}>
+                <FaUser className='adicon' />
+                <div className='udet'>
+                    <p>{adminName}</p>
+                    <p style={{ color:'gray' }}>{adminRole}</p>
                 </div>
             </div>
         </div>
-        <div className={`sidebar ${open? 'open':''}`}>
-            <p className='icntxt' onClick={()=>navigate('/admin/dashboard')}><FaTachometerAlt className='hicon'/>Dashboard</p>
-            <p className='icntxt' onClick={()=>navigate('/admin/manage-admin')}><FaUserShield className='hicon'/>Manage Admin</p>
-            <p className='icntxt' onClick={()=>navigate('/admin/manage-user')}><FaUsers className='hicon'/>Manage User</p>
-            <p className='icntxt' onClick={()=>navigate('/admin/manage-package')}><FaBoxOpen className='hicon'/>Manage Packages</p>
-            <p className='icntxt' onClick={()=>navigate('/admin/active-users')}><FaUserCheck className='hicon'/>Active Users</p>
-            <p className='icntxt' onClick={()=>navigate('/admin/deactivated-users')}><FaUserTimes className='hicon'/>Deactivated Users</p>
 
-            <h5 className='lop' onClick={handleLogout}><FaSignOutAlt/>Logout</h5>
+        <div className={`sidebar ${open ? 'open':''}`}>
+            <p className='myp' onClick={() => navigate('/admin/home')}><FaTachometerAlt/>Dashboard</p>
+            {adminRole === "superadmin" && (
+                <>
+                    <p className='myp' onClick={() => navigate('/admin/manage-admin')}><FaUserShield className='sidebar-icon'/>Manage Admin</p>  
+                </>
+            )}
+            <p className='myp' onClick={() => navigate('/admin/manage-user')}><FaUsers className='sidebar-icon'/>Manage User</p>
+            <p className='myp' onClick={() => navigate('/admin/manage-package')}><FaBoxOpen className='sidebar-icon'/>Manage Packages</p>
+            <p className='myp' onClick={() => navigate('/admin/user-queries')}><FaQuestionCircle className='sidebar-icon'/>User Queries</p>
+            <p className='myp' onClick={() => navigate('/admin/active-users')}><FaUserCheck className='sidebar-icon'/>Active Users</p>
+            <p className='myp' onClick={() => navigate('/admin/inactive-users')}><FaUserTimes className='sidebar-icon'/>Deactivated Users</p>
 
+            <h5 className='lop' onClick={handleLogout}><FaSignOutAlt className='signout-icon'/>Logout</h5>
         </div>
+
         {open && <div className="overlay" onClick={() => setOpen(false)}></div>}
 
-        <div className={`dropdown ${showDropdown ? 'showDropdown' : ''}`}>
-            <p>Profile</p>
-            <p onClick={() => navigate('/admin/change-password')}>Change Password</p>
+        <div className={`dropdown ${showDropdown ? 'showDropdown':''}`}>
+            <p className='dop'><FaUserCircle/>Profile</p>
+            <p className='dop' onClick={()=>navigate('/admin/change-password')}><FaKey/>Change Password</p>
         </div>
     </div>
   )

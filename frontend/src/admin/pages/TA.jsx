@@ -1,13 +1,13 @@
 import React from 'react'
-import '../styles/ma.css'
-import Header from '../components/Header' 
-import TargetsAchieved from '../components/TargetsAchieved'
+import '../Styles/macomp.css'
+import Header from '../Components/Header'
+import TAComp from '../Components/TAComp'
 
 function TA() {
   return (
-    <div className='adminpage'>
-      <Header/>
-      <TargetsAchieved/>
+    <div className='Macomp'>
+        <Header/>
+        <TAComp/>
     </div>
   )
 }

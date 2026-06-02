@@ -1,201 +1,209 @@
-.profileShell {
-  min-height: calc(100vh - 60px);
-  padding: 26px 14px;
+.profile-page{
+  height: 100vh;
+  width: 100vw;
+  background: #f3f6fb;
   display: flex;
+  align-items: center;
   justify-content: center;
-  background: #f6f7fb;
+  padding: 28px 14px;
+  box-sizing: border-box;
 }
 
-.profileLoading {
-  padding: 20px;
-  text-align: center;
-  color: #444;
-}
-
-/* CARD */
-.proProfileCard {
-  width: 980px;
-  max-width: 96vw;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
+.profile-shell{
+  width: min(1120px, 100%);
+  background: #ffffff;
+  border-radius: 18px;
   overflow: hidden;
-  display: grid;
-  grid-template-columns: 280px 1fr;
+  display: flex;
+  margin-top: -50px;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.10);
 }
 
 /* LEFT */
-.ppLeft {
-  padding: 22px 18px;
-  color: #fff;
-  background: linear-gradient(145deg, green, green);
-  position: relative;
+.profile-sidebar{
+  width: 280px;
+  background: #1e293b; /* green like screenshot */
+  padding: 28px 22px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.ppAvatar {
+.profile-avatar{
   width: 110px;
   height: 110px;
-  border-radius: 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.16);
   display: grid;
   place-items: center;
-  background: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.25);
-  backdrop-filter: blur(6px);
   position: relative;
-  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.22);
 }
 
-.ppUserIcon {
-  font-size: 64px;
-  opacity: 0.9;
-}
-
-.ppInitials {
-  position: absolute;
-  bottom: 10px;
-  right: 12px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  font-size: 14px;
-  padding: 4px 8px;
+.avatar-circle{
+  width: 74px;
+  height: 74px;
   border-radius: 999px;
-  background: rgba(0,0,0,0.18);
-  border: 1px solid rgba(255,255,255,0.25);
-}
-
-.ppName {
-  margin: 14px 0 4px 0;
-  font-size: 18px;
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.ppRole {
-  margin: 0;
-  font-size: 13px;
-  opacity: 0.92;
-}
-
-.ppBadges {
-  margin-top: 14px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.ppBadge {
-  font-size: 12px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
   font-weight: 800;
-  padding: 6px 10px;
+  font-size: 22px;
+  color: #1e293b;
+}
+
+.avatar-dot{
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.25);
+  background: #27c84a;
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  border: 2px solid rgba(10,122,10,0.9);
+}
+
+.profile-mini{
+  color: #fff;
+}
+
+.profile-name{
+  margin: 8px 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.profile-tier{
+  margin: 0 0 12px;
+  font-size: 14px;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+.status-pill{
+  display: inline-flex;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(0,0,0,0.10);
+  width: fit-content;
+}
+
+.status-pill.expired{
+  background: rgba(0,0,0,0.12);
+}
+
+.status-pill.active{
   background: rgba(255,255,255,0.14);
 }
 
-.ppBadge.success { background: rgba(16, 185, 129, 0.22); }
-.ppBadge.danger  { background: rgba(239, 68, 68, 0.22); }
-.ppBadge.ghost   { background: rgba(255,255,255,0.12); }
-
-
 /* RIGHT */
-.ppRight {
-  padding: 22px 22px;
-  background: #fff;
+.profile-content{
+  flex: 1;
+  padding: 26px 28px;
+  box-sizing: border-box;
+  background: #ffffff;
 }
 
-.ppRightHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+.content-head{
+  padding: 6px 0 18px;
 }
 
-.ppTitle {
+.content-title{
   margin: 0;
-  font-size: 18px;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 800;
   color: #111827;
 }
 
-.ppSub {
-  margin: 6px 0 0 0;
-  font-size: 12px;
+.content-sub{
+  margin: 6px 0 0;
   color: #6b7280;
+  font-size: 13px;
 }
 
-/* INFO GRID */
-.ppGrid {
+.info-grid{
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.ppItem {
-  border: 1px solid rgba(0,0,0,0.06);
-  background: #fafbff;
-  border-radius: 12px;
-  padding: 12px 12px;
+.info-card{
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px 14px;
 }
 
-.ppItem.full {
+.info-card--full{
   grid-column: 1 / -1;
 }
 
-.ppLabel {
+.info-top{
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 6px;
+  gap: 10px;
+  color: #4b5563;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 8px;
 }
 
-.ppValue {
-  color: #111827;
+.info-icon{
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  display: grid;
+  place-items: center;
   font-size: 14px;
-  font-weight: 800;
+}
+
+.info-label{
+  letter-spacing: 0.2px;
+}
+
+.info-value{
+  font-size: 14px;
+  color: #111827;
+  font-weight: 700;
   word-break: break-word;
 }
 
-.ppMiniNote {
-  font-size: 12px;
-  color: #6b7280;
-  font-weight: 700;
+.validity-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.ppMiniNote.danger {
-  color: #b91c1c;
+.expired-text{
+  color: #dc2626;
+  font-weight: 800;
+  font-size: 13px;
 }
 
-/* RESPONSIVE */
-@media (max-width: 860px) {
-  .proProfileCard {
-    grid-template-columns: 1fr;
+/* Responsive */
+@media (max-width: 860px){
+  .profile-shell{
+    flex-direction: column;
+    margin-top: 350px;
   }
-  .ppLeft {
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 14px;
+  .profile-sidebar{
+    width: 100%;
+    flex-direction: row;
     align-items: center;
+    gap: 18px;
   }
-  .ppLeftHint {
-    grid-column: 1 / -1;
-    margin-top: 10px;
+  .profile-mini{
+    flex: 1;
   }
-}
-
-@media (max-width: 520px) {
-  .ppGrid {
+  .info-grid{
     grid-template-columns: 1fr;
-  }
-  .ppAvatar {
-    width: 96px;
-    height: 96px;
-  }
-  .ppUserIcon {
-    font-size: 56px;
   }
 }

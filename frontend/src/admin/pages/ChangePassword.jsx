@@ -1,13 +1,13 @@
 import React from 'react'
-import '../styles/form.css'
-import Header from '../components/Header'
-import ChangepassComp from '../components/ChangepassComp'
+import ChangePassComp from '../Components/ChangePassComp'
+import Header from '../Components/Header'
+import '../../User/Styles/CP.css'
 
 function ChangePassword() {
   return (
-    <div className='adminform'>
-      <Header/>
-      <ChangepassComp/>
+    <div className='cp'>
+        <Header/>
+        <ChangePassComp/>
     </div>
   )
 }

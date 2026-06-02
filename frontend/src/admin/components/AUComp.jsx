@@ -1,190 +1,324 @@
-import React, { useEffect, useMemo, useState } from "react";
-import "../styles/ma.css";
+import React, { useState, useEffect } from "react";
+import "../Styles/asa.css";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { API_BASE } from "../../utils/api";
 
 function AUComp() {
-  const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const itemsPerPage = 10;
-  const token = localStorage.getItem("token");
+  const userToEdit = location.state?.userToEdit || null;
 
-  const getActiveUsers = async () => {
+  const [adminList, setAdminList] = useState([]);
+  const [packagesList, setPackagesList] = useState([]);
+
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
+
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const [mobile, setMobile] = useState("");
+  const [mobileError, setMobileError] = useState("");
+
+  const [admin, setAdmin] = useState("");
+  const [packages, setPackages] = useState("");
+  const [paymentoptions, setPaymentOptions] = useState("");
+  const [price, setPrice] = useState("");
+  const [priceError, setPriceError] = useState("");
+
+  // ✅ expiry date + time inputs
+  const [date, setDate] = useState(""); // MM-DD-YYYY
+  const [time, setTime] = useState("23:59"); // HH:mm
+
+  const getAdminNames = async () => {
     try {
-      const res = await axios.get("https://api.freelancing-projects.com/api/admin/get-activeusers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUsers(Array.isArray(res.data) ? res.data : []);
+      const res = await axios.get(`${API_BASE}/admin/adminnames`);
+      setAdminList(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      if (err.response?.data?.message) alert(err.response.data.message);
-      else alert("Error Getting Active Users");
+      alert(err.response?.data?.message || "Error fetching admins");
+    }
+  };
+
+  const getPackageNames = async () => {
+    try {
+      // ✅ IMPORTANT: This API must return package price too
+      // Example item: { _id, name, price } (or amount/cost)
+      const res = await axios.get(`${API_BASE}/package/package-names`);
+      setPackagesList(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      alert(err.response?.data?.message || "Error fetching packages");
     }
   };
 
   useEffect(() => {
-    getActiveUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    getAdminNames();
+    getPackageNames();
   }, []);
 
-  // --- Search filter ---
-  const filteredUsers = useMemo(() => {
-    const term = String(searchTerm || "").toLowerCase().trim();
-    if (!term) return users;
+  // ✅ helper: combine MM-DD-YYYY + time -> ISO string for backend
+  const buildExpiryISO = (dateStr, timeStr) => {
+    if (!dateStr || !timeStr) return "";
 
-    return users.filter((u) => {
-      const name = String(u.name || "").toLowerCase();
-      const email = String(u.email || "").toLowerCase();
-      const status = u.status ? "active" : "inactive";
-      return name.includes(term) || email.includes(term) || status.includes(term);
-    });
-  }, [users, searchTerm]);
+    const dateRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-\d{4}$/;
 
-  // --- Export Excel (exports filtered users) ---
-  const exportToExcel = () => {
-    if (!filteredUsers.length) return alert("No users to export");
+    if (!dateRegex.test(dateStr)) {
+      return "";
+    }
 
-    const data = filteredUsers.map((u, i) => ({
-      "Sr.No.": i + 1,
-      Name: u.name || "",
-      "Email Id": u.email || "",
-      Status: u.status ? "Active" : "InActive",
-    }));
+    const [mm, dd, yyyy] = dateStr.split("-").map(Number);
+    const [hh, min] = timeStr.split(":").map(Number);
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Active Users");
-    XLSX.writeFile(wb, "active_users.xlsx");
+    const dt = new Date(yyyy, mm - 1, dd, hh, min, 0, 0);
+
+    // ✅ validate real date like 02-30-2026 should not pass
+    if (
+      dt.getFullYear() !== yyyy ||
+      dt.getMonth() !== mm - 1 ||
+      dt.getDate() !== dd
+    ) {
+      return "";
+    }
+
+    return dt.toISOString();
   };
 
-  // --- Export PDF (exports filtered users) ---
-  const exportToPDF = () => {
-    if (!filteredUsers.length) return alert("No users to export");
-
-    const doc = new jsPDF("p", "pt", "a4");
-    doc.text("Active Users List", 40, 30);
-
-    const head = [["Sr.No.", "Name", "Email Id", "Status"]];
-    const body = filteredUsers.map((u, i) => [
-      i + 1,
-      u.name || "",
-      u.email || "",
-      u.status ? "Active" : "InActive",
-    ]);
-
-    autoTable(doc, {
-      head,
-      body,
-      startY: 50,
-      styles: { fontSize: 10 },
-      headStyles: { fontSize: 10 },
-    });
-
-    doc.save("active_users.pdf");
+  // ✅ safest way to read price from your package object
+  const getPackagePrice = (pkg) => {
+    if (!pkg) return "";
+    // support multiple possible keys (change based on your backend)
+    const p =
+      pkg.price ??
+      pkg.amount ??
+      pkg.cost ??
+      pkg.packagePrice ??
+      pkg.planPrice ??
+      "";
+    return p === "" || p === null || typeof p === "undefined" ? "" : String(p);
   };
 
-  // --- Pagination ---
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+  // ✅ fill form on edit
+  useEffect(() => {
+    if (!userToEdit) return;
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+    setName(userToEdit.name || "");
+    setEmail(userToEdit.email || "");
+    setMobile(userToEdit.mobile || "");
+    setAdmin(userToEdit.admin?._id || "");
+    setPackages(userToEdit.packages?._id || "");
+    setPrice(userToEdit.price || "");
+    setPaymentOptions(userToEdit.paymentoptions || "");
 
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+    if (userToEdit.date) {
+      const d = new Date(userToEdit.date);
+
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+
+      // ✅ show date in MM-DD-YYYY format
+      setDate(`${mm}-${dd}-${yyyy}`);
+
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      setTime(`${hh}:${min}`);
+    } else {
+      setDate("");
+      setTime("23:59");
+    }
+  }, [userToEdit]);
+
+  // ✅ AUTO-FILL PRICE when package changes (works for Add + Edit)
+  useEffect(() => {
+    if (!packages) return;
+
+    const selectedPkg = packagesList.find((p) => p._id === packages);
+    const autoPrice = getPackagePrice(selectedPkg);
+
+    // ✅ only auto-fill if:
+    // - add mode OR
+    // - price is empty OR
+    // - current price equals old selected package price
+    // (simple safe behavior: always overwrite on change)
+    if (autoPrice !== "") {
+      setPrice(autoPrice);
+      setPriceError("");
+    }
+  }, [packages, packagesList]);
+
+  // ✅ onChange handler (also supports auto-fill immediately)
+  const handlePackageChange = (e) => {
+    const pkgId = e.target.value;
+    setPackages(pkgId);
+
+    const selectedPkg = packagesList.find((p) => p._id === pkgId);
+    const autoPrice = getPackagePrice(selectedPkg);
+
+    if (autoPrice !== "") {
+      setPrice(autoPrice);
+      setPriceError("");
+    } else {
+      // if no price returned from API, keep price as-is
+      // (or you can clear it: setPrice(""))
+    }
+  };
+
+  const handleUser = async () => {
+    setNameError("");
+    setEmailError("");
+    setMobileError("");
+    setPriceError("");
+
+    let valid = true;
+
+    if (!name || !email || !admin || !packages || !price || !paymentoptions || !date || !time) {
+      alert("Please fill all fields");
+      valid = false;
+    }
+
+    if (name && name.length < 2) {
+      setNameError("Name length cannot be less than 2 characters");
+      valid = false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email && !emailRegex.test(email)) {
+      setEmailError("Invalid email format");
+      valid = false;
+    }
+
+    if (mobile && String(mobile).length < 10) {
+      setMobileError("Mobile number cannot be less than 10 digits");
+      valid = false;
+    }
+
+    const expiryISO = buildExpiryISO(date, time);
+    if (!expiryISO) {
+      alert("Please enter expiry date in MM-DD-YYYY format");
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    try {
+      const payload = {
+        name,
+        email,
+        mobile,
+        admin,
+        packages,
+        price: Number(price),
+        paymentoptions,
+        date: expiryISO, // ✅ store expiry datetime in `date`
+      };
+
+      if (userToEdit) {
+        const res = await axios.put(
+          `${API_BASE}/auth/${userToEdit._id}/edit-user`,
+          payload
+        );
+        alert(res.data.message);
+        navigate("/admin/manage-user");
+      } else {
+        const res = await axios.post(`${API_BASE}/auth/create-user`, payload);
+        alert(res.data.message);
+        navigate("/admin/manage-user");
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Server Error");
+    }
   };
 
   return (
-    <div className="comp">
-      <h3>Active Users</h3>
+    <div className="asacomp">
+      <h3>{userToEdit ? "Edit User" : "Add User"}</h3>
 
-      <div className="incomp">
-        <div className="go">
-          <h4>Active Users List</h4>
-        </div>
+      <div className="inasacomp">
+        <h4>Enter Basic Details</h4>
 
-        <div className="go">
-          <div className="mygo">
-            <p style={{ cursor: "pointer" }} onClick={exportToExcel}>
-              Excel
-            </p>
-            <p style={{ cursor: "pointer" }} onClick={exportToPDF}>
-              PDF
-            </p>
-          </div>
+        <div className="form">
+          <input
+            type="text"
+            value={name}
+            placeholder="Enter Name*"
+            onChange={(e) => setName(e.target.value)}
+          />
+          {nameError && <p className="error">{nameError}</p>}
+
+          <input
+            type="email"
+            value={email}
+            placeholder="Enter Email Id*"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          {emailError && <p className="error">{emailError}</p>}
 
           <input
             type="text"
-            className="search"
-            placeholder="Search name / email / status..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={mobile}
+            placeholder="Enter Mobile Number"
+            onChange={(e) => setMobile(e.target.value)}
           />
+          {mobileError && <p className="error">{mobileError}</p>}
+
+          <select value={admin} onChange={(e) => setAdmin(e.target.value)}>
+            <option value="">Select Admin</option>
+            {adminList.map((adm) => (
+              <option key={adm._id} value={adm._id}>
+                {adm.name}
+              </option>
+            ))}
+          </select>
+
+          {/* ✅ Package select with auto price */}
+          <select value={packages} onChange={handlePackageChange}>
+            <option value="">Select Package</option>
+            {packagesList.map((pkg) => (
+              <option key={pkg._id} value={pkg._id}>
+                {pkg.name}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="number"
+            value={price}
+            placeholder="Enter Package Price*"
+            onChange={(e) => setPrice(e.target.value)}
+          />
+          {priceError && <p className="error">{priceError}</p>}
+
+          <select value={paymentoptions} onChange={(e) => setPaymentOptions(e.target.value)}>
+            <option value="">Select Payment Option</option>
+            <option value="cash">Cash</option>
+            <option value="cheque">Cheque</option>
+            <option value="online">Online</option>
+            <option value="gpay">GPAY</option>
+            <option value="phonepe">PhonePe</option>
+          </select>
+
+          {/* ✅ Expiry Date + Time */}
+          <div style={{ display: "flex", gap: 10 }}>
+            <input
+              type="text"
+              value={date}
+              placeholder="MM-DD-YYYY"
+              maxLength={10}
+              onChange={(e) => setDate(e.target.value)}
+            />
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th className="myth">Sr.No.</th>
-              <th className="myth">Name</th>
-              <th className="myth">Email Id</th>
-              <th className="myth">Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((user, index) => (
-                <tr key={user._id}>
-                  <td className="mytd">{indexOfFirstItem + index + 1}</td>
-                  <td className="mytd">{user.name}</td>
-                  <td className="mytd">{user.email}</td>
-                  <td className="mytd">
-                    {user.status ? (
-                      <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
-                    ) : (
-                      <span style={{ color: "red", fontWeight: "bold" }}>InActive</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="4" style={{ textAlign: "center", color: "gray" }}>
-                  No users found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {filteredUsers.length > 0 && (
-          <div className="pagination-container">
-            <div className="pagination">
-              <button onClick={() => goToPage(1)} disabled={currentPage === 1}>
-                «
-              </button>
-              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
-                ‹
-              </button>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
-                ›
-              </button>
-              <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages}>
-                »
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="bttns">
+          <button className="cancel" onClick={() => navigate("/admin/manage-user")}>
+            Cancel
+          </button>
+          <button className="submit" onClick={handleUser}>
+            Submit
+          </button>
+        </div>
       </div>
     </div>
   );

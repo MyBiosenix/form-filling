@@ -1,11 +1,9 @@
 import React from 'react'
-import Header from '../components/Header'
-import ViewComp from '../components/ViewComp'
+import ViewComp from '../Components/ViewComp'
 
 function View() {
   return (
-    <div className='myhome'>
-      <Header/>
+    <div>
       <ViewComp/>
     </div>
   )

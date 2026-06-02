@@ -1,13 +1,13 @@
 import React from 'react'
-import '../styles/ma.css'
-import Header from '../components/Header' 
-import DraftComp from '../components/DraftComp'
+import DraftComp from '../Components/DraftComp'
+import Header from '../Components/Header'
+import '../Styles/macomp.css'
 
 function Drafts() {
   return (
-    <div className='adminpage'>
-      <Header/>
-      <DraftComp/>
+    <div className='Macomp'>
+        <Header/>
+        <DraftComp/>
     </div>
   )
 }

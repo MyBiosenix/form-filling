@@ -1,180 +1,242 @@
-.wrk {
-  display: flex;
-  gap: 24px;
-  padding: 24px;
-  background: #f1f3f6;
-  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+.mywork{
+  padding: 10px 20px;
   box-sizing: border-box;
-  color: black;
-  height: 100vh;
+  overflow-x: hidden;
 }
-
-.tble {
-  width: 65%;
-  background: #fff;
-  padding: 16px;
-  border-radius: 10px;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+.mywork h3{
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 0;
+}
+.workarea{
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 10px;
 }
 
-.table-wrapper {
-  overflow: auto;
-  border: 1px solid #e0e3e7;
-  border-radius: 6px;
-  scrollbar-width: thin;
-  scrollbar-width: thin;
-  scrollbar-color: #006408 #f9f3e3;
-}
-
-table {
-  border-collapse: collapse;
-  font-size: 13px;
-  min-width: 1200px;
-}
-
-th, td {
-  padding: 8px;
-  border: 1px solid #e0e3e7;
-  white-space: nowrap;
-}
-
-th {
-  background: #0f7a24;
-  color: white;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-td {
-  color: black;
-}
-
-tbody tr:nth-child(even) {
-  background: #fafafa;
-}
-
-tbody tr:hover {
-  background: #eef4ff;
-}
-
-.form {
-  width: 35%;
-  background: #fff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+/* left snippet */
+.para {
+  width: 55%;
+  background: radial-gradient(circle, #fdf5e6 0%, #f5deb3 100%);
+  border-radius: 5px;
+  padding: 20px 30px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  max-height: 450px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #006408 #f9f3e3;
+  scrollbar-color: #b48a3c #f9f3e3;
 }
-.fir{
-  margin-bottom: 14px;
+.para p {
+  font-family: "Orange Typewriter", monospace;
+  font-size: 18px;
+  color: #3b2f2f;
+  text-align: justify;
+  text-shadow: 0px 1px 1px rgba(255,255,255,0.4);
 }
 
-.form-grid {
+/* right input */
+.inputarea{
+  width: 30%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
-
-.form-group{
-  display: flex;
-  flex-direction: column;
+.inputarea textarea::placeholder{
+  font-family: "Book Antiqua", "Palatino Linotype", Palatino, serif;
 }
-
-.form-group label {
+.inputarea textarea{
+  height: 100%;
   font-size: 15px;
-  color: #000000;
-  font-weight: bold;
-  margin-bottom: 4px;
+  padding: 10px 10px;
+  font-family: "Book Antiqua", "Palatino Linotype", Palatino, serif;
+  color: black;
+  background-color: #fff;
+  border-radius: 10px;
 }
 
-.form-group input {
-  border: none;
-  border-bottom: 2px solid #dadce0;
-  background: white;
-  padding: 8px 6px;
-  color: gray;
-  font-size: 14px;
-  outline: none;
-}
-.form-group input::placeholder {
-  color: rgb(155, 154, 154);
-}
-
-.form-group input:focus {
-  border-bottom-color: #673ab7;
-}
-
-.frmbtn {
-  margin-top: 12px;
-  padding: 10px 24px;
-  background: #673ab7;
+.submitBtn{
+  background-color: blue;
   color: white;
+  padding: 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
+}
+
+/* prevent copy */
+.no-copy {
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -moz-user-select: none;
+}
+
+/* ---------- ✅ CAPTCHA (responsive) ---------- */
+.captchaWrap { margin-top: 12px; }
+.captchaLabel { font-weight: 600; display: block; margin-bottom: 6px; }
+
+/* grid ensures parallel alignment */
+.captchaRow{
+  display: grid;
+  grid-template-columns: auto 40px 1fr; /* captcha | refresh | input */
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+/* captcha box */
+.captchaBox{
+  position: relative;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #c7c7c7;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  font-weight: 800;
+  letter-spacing: 4px;
+  user-select: none;
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+
+  /* ✅ responsive scaling */
+  width: clamp(120px, 38vw, 180px);
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.captchaLine{
+  position: absolute;
+  top: 50%;
+  left: -10%;
+  width: 120%;
+  height: 2px;
+  background: rgba(0,0,0,0.25);
+  transform: rotate(-8deg);
+}
+
+.captchaChar{
+  color: #111827;
+  display: inline-block;
+  font-size: clamp(14px, 4vw, 20px);
+}
+
+.captchaRefresh{
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: black;
   cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
 }
 
-.excel-table {
-  outline: none;
+.captchaInput{
+  width: 100%;
+  min-width: 0;            /* ✅ important for mobile */
+  height: 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: white;
+  color: black;
 }
 
-.cell {
-  cursor: cell;
-}
+.captchaError { color: red; margin-top: 6px; font-weight: 600; }
 
-.cell.selected {
-  background: #e8f0fe;
-  outline: 2px solid #1a73e8;
-  outline-offset: -2px;
-}
+/* ---------- Responsive layout ---------- */
+@media screen and (max-width: 768px) {
+  .mywork { padding: 10px; height: auto; }
+  .workarea { flex-direction: column; gap: 25px; align-items: center; }
 
-.excel-table:focus {
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
-}
+  .para { width: 100%; padding: 25px 25px; border-radius: 10px; }
+  .para p { font-size: 17px; }
 
-.gf{
-   font-family: "Roboto", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  
-}
-
-@media (max-width:450px){
-  .wrk{
-    flex-direction: column;
-    padding: 10px;
-    
+  .inputarea { width: 100%; }
+  .inputarea textarea {
+    height: 200px;
+    width: 100%;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
   }
-  .tble{
-    width: 95%;
-    height: 300px !important;
-    padding: 10px !important;
+
+  .submitBtn { width: 100%; font-size: 16px; }
+}
+
+@media screen and (max-width: 450px) {
+  .mywork h3 { font-size: 22px; margin-bottom: 20px; }
+
+  .para { width: 90%; padding: 18px 20px; max-height: 250px; }
+  .para p { font-size: 14px; }
+
+  .inputarea { width: 90%; }
+
+  .inputarea textarea {
+    width: 100%;
+    height: 160px;
+    font-size: 13px;
+    padding: 12px 6px;
+    border-radius: 8px;
+    resize: none;
   }
-  .tble h2{
-    font-size: 14px
+
+  /* ✅ tighter captcha on small screens */
+  .captchaRow{
+    grid-template-columns: auto 34px 1fr;
+    gap: 8px;
   }
-  .form{
-    width: 95%;
-    padding: 10px;
+
+  .captchaBox{
+    height: 34px;
+    width: clamp(105px, 34vw, 150px);
+    padding: 8px 10px;
+    letter-spacing: 3px;
   }
-  .form h2{
+
+  .captchaRefresh{
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .captchaInput{
+    height: 34px;
     font-size: 14px;
   }
-  .form-group label{
-    font-size: 13px;
-  }
-  .form-group input {
-    font-size: 12px;
-  }
-  table{
-    font-size: 10px !important;
-  }
-  th,td{
-    padding: 3px !important;
-  }
 
+  .submitBtn { width: 100%; padding: 14px; }
+}
+
+/* Extra tiny screens: allow wrap cleanly */
+@media screen and (max-width: 320px) {
+  .captchaRow{
+    grid-template-columns: 1fr 34px;
+    grid-template-areas:
+      "box refresh"
+      "input input";
+  }
+  .captchaBox{ grid-area: box; width: 100%; }
+  .captchaRefresh{ grid-area: refresh; }
+  .captchaInput{ grid-area: input; }
+}
+
+/* disabled styles */
+.input[disabled] {
+  background-color: #f5f5f5;
+  color: #777;
+  cursor: not-allowed;
+}
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

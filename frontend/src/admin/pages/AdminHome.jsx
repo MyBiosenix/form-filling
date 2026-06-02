@@ -1,7 +1,6 @@
 import React from 'react'
-import Header from '../components/Header'
-import '../../user/styles/home.css'
-import Dashboard from '../components/Dashboard'
+import Header from '../Components/Header'
+import Dashboard from '../Components/Dashboard'
 
 function AdminHome() {
   return (

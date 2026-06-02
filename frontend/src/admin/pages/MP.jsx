@@ -1,13 +1,13 @@
 import React from 'react'
-import Header from '../components/Header'
-import MpComp from '../components/MpComp'
-import '../styles/ma.css'
+import '../Styles/macomp.css'
+import Header from '../Components/Header'
+import MpComp from '../Components/MpComp'
 
 function MP() {
   return (
-    <div className='adminpage'>
-      <Header/>
-      <MpComp/>
+    <div className='Macomp'>
+        <Header/>
+        <MpComp/>
     </div>
   )
 }

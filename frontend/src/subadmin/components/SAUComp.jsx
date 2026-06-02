@@ -1,166 +1,148 @@
-import React, { useEffect, useMemo, useState } from "react";
-import '../../admin/styles/ma.css';
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import '../../Admin/Styles/macomp.css';
+import axios from 'axios';
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { API_BASE } from "../../utils/api";
+import { getSubAdminToken } from "../../utils/auth";
+import PaginationControls from "../../components/PaginationControls";
+import { unwrapPaginatedResponse, useDebouncedValue } from "../../utils/pagination";
 
 function SAUComp() {
-  const navigate = useNavigate();
-
   const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-
-  const itemsPerPage = 10;
-
-  const token = localStorage.getItem("token");
-
-  const getActiveUsers = async () => {
-    try {
-      const res = await axios.get(
-        "https://api.freelancing-projects.com/api/sub-admin/active-users",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      setUsers(res.data);
-    } catch (err) {
-      if (err.response?.data?.message) alert(err.response.data.message);
-      else alert("Error Getting Active Users");
-    }
-  };
+  const [pagination, setPagination] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const debouncedSearch = useDebouncedValue(searchTerm);
 
   useEffect(() => {
+    const getActiveUsers = async () => {
+      try {
+        setLoading(true);
+        const token = getSubAdminToken();
+        const res = await axios.get(`${API_BASE}/sub-admin/active-users`, {
+          headers: {
+            Authorization:`Bearer ${token}`
+          },
+          params: {
+            page: currentPage,
+            limit: 10,
+            search: debouncedSearch,
+          },
+        });
+        const { data, pagination: nextPagination } = unwrapPaginatedResponse(res.data);
+        setUsers(data);
+        setPagination(nextPagination);
+      } catch (err) {
+        alert(err.response?.data?.message || 'Error Fetching Active Users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     getActiveUsers();
-  }, []);
+  }, [currentPage, debouncedSearch]);
 
-  // --- Search filter ---
-  const filteredUsers = useMemo(() => {
-    const term = String(searchTerm || "").toLowerCase().trim();
-    if (!term) return users;
+  const exportToExcel = () => {
+    const data = users.map((u, i) => ({
+      "Sr No.": ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
+      "Name": u.name,
+      "Email": u.email,
+      "Status": "Active",
+    }));
 
-    return users.filter((u) => {
-      const name = String(u.name || "").toLowerCase();
-      const email = String(u.email || "").toLowerCase();
-      const status = u.status ? "active" : "inactive";
-      return (
-        name.includes(term) ||
-        email.includes(term) ||
-        status.includes(term)
-      );
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Active Users");
+    XLSX.writeFile(workbook, "ActiveUsersList.xlsx");
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Active Users List", 14, 15);
+
+    const tableColumn = ["Sr No.", "Name", "Email", "Status"];
+    const tableRows = users.map((u, i) => [
+      ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
+      u.name,
+      u.email,
+      "Active",
+    ]);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185] },
     });
-  }, [users, searchTerm]);
 
-  // --- Pagination ---
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+    doc.save("ActiveUsersList.pdf");
   };
 
   return (
-    <div className="comp">
+    <div className='comp'>
       <h3>Active Users</h3>
-
-      <div className="incomp">
-        <div className="go">
+      <div className='incomp'>
+        <div className='go'>
           <h4>Active Users List</h4>
         </div>
 
-        <div className="go">
-          <div className="mygo">
-            <p style={{ cursor: "pointer" }}>Excel</p>
-            <p style={{ cursor: "pointer" }}>PDF</p>
+        <div className='go'>
+          <div className='mygo'>
+            <p onClick={exportToExcel} style={{ cursor: 'pointer' }}>Excel</p>
+            <p onClick={exportToPDF} style={{ cursor: 'pointer' }}>PDF</p>
           </div>
-
           <input
-            type="text"
-            className="search"
-            placeholder="Search name / email / status..."
+            type='text'
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
+            className='search'
+            placeholder='Search by name or email'
           />
         </div>
 
         <table>
           <thead>
             <tr>
-              <th className="myth">Sr.No.</th>
-              <th className="myth">Name</th>
-              <th className="myth">Email Id</th>
-              <th className="myth">Status</th>
+              <th>Sr.No.</th>
+              <th>Name</th>
+              <th>Email Id</th>
+              <th>Status</th>
             </tr>
           </thead>
-
           <tbody>
-            {currentItems.length > 0 ? (
-              currentItems.map((user, index) => (
-                <tr key={user._id}>
-                  {/* ✅ correct Sr.No across pages */}
-                  <td className="mytd">{indexOfFirstItem + index + 1}</td>
-                  <td className="mytd">{user.name}</td>
-                  <td className="mytd">{user.email}</td>
-                  <td className="mytd">
-                    {user.status ? (
-                      <span style={{ color: "green", fontWeight: "bold" }}>
-                        Active
-                      </span>
-                    ) : (
-                      <span style={{ color: "red", fontWeight: "bold" }}>
-                        InActive
-                      </span>
-                    )}
-                  </td>
+            {loading ? (
+              <tr>
+                <td colSpan='4' style={{ textAlign: 'center', color: 'gray' }}>
+                  Loading active users...
+                </td>
+              </tr>
+            ) : users.length > 0 ? (
+              users.map((u, index) => (
+                <tr key={u._id}>
+                  <td>{((pagination?.page || 1) - 1) * (pagination?.limit || 10) + index + 1}</td>
+                  <td>{u.name}</td>
+                  <td>{u.email}</td>
+                  <td style={{ color: 'green', fontWeight: 'bold' }}>Active</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="4" style={{ textAlign: "center", color: "gray" }}>
-                  No users found
+                <td colSpan='4' style={{ textAlign: 'center', color: 'gray' }}>
+                  No active users found
                 </td>
               </tr>
             )}
           </tbody>
         </table>
 
-        {filteredUsers.length > 0 && (
-          <div className="pagination-container">
-            <div className="pagination">
-              <button onClick={() => goToPage(1)} disabled={currentPage === 1}>
-                «
-              </button>
-              <button
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                ‹
-              </button>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                ›
-              </button>
-              <button
-                onClick={() => goToPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                »
-              </button>
-            </div>
-          </div>
-        )}
+        <PaginationControls pagination={pagination} onPageChange={setCurrentPage} />
       </div>
     </div>
   );

@@ -1,15 +1,15 @@
 import React from 'react'
-import Header from '../components/Header'
-import AUComp from '../components/AUComp'
-import '../styles/ma.css'
+import Header from '../Components/Header'
+import AUComp from '../Components/AUComp'
+import '../Styles/asa.css'
 
-function AU() {
+function ASA() {
   return (
-    <div className='adminpage'>
-      <Header/>
-      <AUComp/>
+    <div className='asa'>
+        <Header/>
+        <AUComp/>
     </div>
   )
 }
 
-export default AU
+export default ASA

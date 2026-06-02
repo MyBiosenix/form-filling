@@ -1,11 +1,11 @@
 import React from 'react'
-import '../../admin/styles/ma.css'
-import Header from '../components/Header'
-import SMuComp from '../components/SMuComp'
+import '../../Admin/Styles/macomp.css'
+import Header from '../Components/Header'
+import SMuComp from '../Components/SMuComp'
 
 function SMU() {
   return (
-    <div className='adminpage'>
+    <div className='Macomp'>
         <Header/>
         <SMuComp/>
     </div>
