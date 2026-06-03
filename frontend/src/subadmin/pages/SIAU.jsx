@@ -1,11 +1,11 @@
 import React from 'react'
-import '../../Admin/Styles/macomp.css'
-import Header from '../Components/Header'
-import SIAUComp from '../Components/SIAUComp'
+import '../../admin/styles/ma.css'
+import Header from '../components/Header'
+import SIAUComp from '../components/SIAUComp'
 
 function SIAU() {
   return (
-    <div className='Macomp'>
+    <div className='adminpage'>
         <Header/>
         <SIAUComp/>
     </div>

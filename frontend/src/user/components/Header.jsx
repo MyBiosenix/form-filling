@@ -1,66 +1,57 @@
-import React, { useEffect, useState } from 'react'
-import '../Styles/header.css'
+import React, { useState } from 'react'
+import {FiMenu, FiUser} from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
-import { FaUser, FaTachometerAlt, FaKeyboard, FaRegQuestionCircle, FaSignOutAlt} from 'react-icons/fa'
-import { FiMenu } from 'react-icons/fi'
-import { FaUserCircle, FaKey} from 'react-icons/fa'
-import http from '../../utils/http'
-import { clearUserSession } from '../../utils/auth'
+import '../../user/styles/header.css'
+import { FaUser, FaUserShield, FaUsers, FaBoxOpen, FaQuestionCircle, FaUserCheck, FaUserTimes,FaTachometerAlt, FaSignOutAlt, FaKey, FaUserCircle } from 'react-icons/fa'
+import { useEffect } from 'react'
 
 function Header() {
-    const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
-    const [username, setUserName] = useState('');
+    const [userName, setUserName] = useState('');
 
-    useEffect(() => {
-        const userData = JSON.parse(localStorage.getItem('user'));
-        if(userData && userData.name){
-            setUserName(userData.name);
+    useEffect(()=>{
+        const user = JSON.parse(localStorage.getItem('user'));
+        if(user){
+            setUserName(user.name);
         }
     },[])
 
-    const handleLogout = async () => {
-  const confirmLogout = window.confirm("Do you really want to Logout?");
-  if (!confirmLogout) return;
+    const navigate = useNavigate();
 
-  try {
-    await http.post('/auth/logout');
-    clearUserSession();
-    navigate('/');
-  } catch {
-    alert("Error logging out. Please try again.");
-  }
-};
-
+    const handleLogout = () => {
+        if(!window.confirm("Do you really want to logout?")) return;
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        navigate('/');
+    }
   return (
     <div>
         <div className='myheader'>
-            <div className='in1'>
-                <FiMenu className='menu' onClick={() => setOpen(!open)}/>
+            <div className='head1'>
+                <FiMenu className='menu' onClick={()=>setOpen(!open)}/>
                 <h3>DATA MANAGEMENT SOFTWARE</h3>
             </div>
-            <div className='in-header' onClick={() => setShowDropdown(!showDropdown)}>
-                <FaUser className='usericon'/>
-                <div className='udet'>
-                    <p>{username}</p>
-                    <p style={{ color:'gray'}}>User</p>
+            <div className='head2' onClick={()=> setShowDropdown(!showDropdown)}>
+                <div className='inhead'>
+                    <p className='uname'>{userName}</p>
+                    <p className='uu'>User</p>
                 </div>
+                <FiUser className='user'/>
             </div>
         </div>
-
-        <div className={`sidebar ${open ? 'open':''}`}>
-            <p className='myp' onClick={() => navigate('/home')}><FaTachometerAlt/>Dashboard</p>
-            <p className='myp' onClick={() => navigate('/work')}><FaKeyboard/>Typing Work</p>
-
-
+        <div className={`sidebar ${open? 'open':''}`}>
+            <p className='icntxt' onClick={()=>navigate('/home')}><FaTachometerAlt className='hicon'/>Dashboard</p>
+            <p className='icntxt' onClick={()=>navigate('/work')}><FaUserShield className='hicon'/>Work</p>
+            
             <h5 className='lop' onClick={handleLogout}><FaSignOutAlt/>Logout</h5>
         </div>
         {open && <div className="overlay" onClick={() => setOpen(false)}></div>}
 
-        <div className={`dropdown ${showDropdown ? 'showDropdown':''}`}>
-            <p className='dop' onClick={() => navigate('/profile')}><FaUserCircle/>Profile</p>
-            <p className='dop' onClick={() => navigate('/change-password')}><FaKey/>Change Password</p>
+        <div className={`dropdown ${showDropdown ? 'showDropdown' : ''}`}>
+            <p onClick={()=>navigate('/profile')}>Profile</p>
+            <p onClick={()=>navigate('/change-password')}>Change Password</p>
         </div>
     </div>
   )

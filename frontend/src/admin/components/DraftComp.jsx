@@ -1,132 +1,143 @@
-import React, { useCallback, useEffect, useState } from "react";
-import "../Styles/macomp.css";
+// DraftsComp.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import "../styles/ma.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { getPackagePageLimit } from "../../utils/packageRules";
-import { API_BASE } from "../../utils/api";
-import PaginationControls from "../../components/PaginationControls";
-import { unwrapPaginatedResponse, useDebouncedValue } from "../../utils/pagination";
 
-function DraftComp() {
+function DraftsComp() {
   const navigate = useNavigate();
+
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const debouncedSearch = useDebouncedValue(searchTerm);
 
-  const fetchDraftUsers = useCallback(async () => {
+  const itemsPerPage = 10;
+  const token = localStorage.getItem("token");
+
+  const getDraftUsers = async () => {
     try {
-      setLoading(true);
-      const res = await axios.get(`${API_BASE}/auth/get-drafts`, {
-        params: {
-          page: currentPage,
-          limit: 10,
-          search: debouncedSearch,
-        },
+      const res = await axios.get("https://api.freelancing-projects.com/api/admin/get-drafts", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const { data, pagination: nextPagination } = unwrapPaginatedResponse(res.data);
-      setUsers(data);
-      setPagination(nextPagination);
+      setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      alert(err.response?.data?.message || "Error fetching draft users");
-    } finally {
-      setLoading(false);
+      if (err.response?.data?.message) alert(err.response.data.message);
+      else alert("Error Getting Draft Users");
     }
-  }, [currentPage, debouncedSearch]);
-
-  useEffect(() => {
-    fetchDraftUsers();
-  }, [fetchDraftUsers]);
-
-  const patchUserInState = (id, patch) => {
-    setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, ...patch } : u)));
   };
 
-  const handleActivate = async (id) => {
+  const handleAcivateUser = async (id) => {
     try {
-      await axios.put(`${API_BASE}/auth/${id}/activate`);
-      patchUserInState(id, { isActive: true });
+      await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${id}/activate-user`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
   };
 
-  const handleDeactivate = async (id) => {
+  const handleDeactivateUser = async (id) => {
     try {
-      await axios.put(`${API_BASE}/auth/${id}/deactivate`);
-      patchUserInState(id, { isActive: false });
+      await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${id}/deactivate-user`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
-
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm("Are you sure to delete this user?")) return;
     try {
-      await axios.delete(`${API_BASE}/auth/${id}/delete`);
-      fetchDraftUsers();
+      await axios.delete(
+        `https://api.freelancing-projects.com/api/admin/${id}/delete-user`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getDraftUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "Server error");
+      alert(err.response?.data?.message || err.message);
     }
   };
+
 
   const handleRemoveFromDraft = async (id) => {
     try {
-      await axios.put(`${API_BASE}/auth/${id}/remove-from-drafts`);
-      fetchDraftUsers();
+      await axios.put(
+        `https://api.freelancing-projects.com/api/admin/${id}/remove-from-draft`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getDraftUsers();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
   };
 
-  const exportToExcel = () => {
-    const data = users.map((u, i) => ({
-      "Sr No.": ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
-      Name: u.name,
-      Admin: u.admin?.name || "No Admin",
-      "Package Taken": u.packages?.name || "No Package",
-      Email: u.email,
-      Status: u.isActive ? "Active" : "Inactive",
-      Draft: "Yes",
-      "Expiry Date": u.date ? new Date(u.date).toLocaleDateString() : "-",
-    }));
+  useEffect(() => {
+    getDraftUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "DraftUsers");
-    XLSX.writeFile(workbook, "DraftUsers.xlsx");
-  };
+  // --- Helpers for search ---
+  const normalize = (v) => String(v ?? "").toLowerCase().trim();
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Draft Users List", 14, 15);
+  const expirySearchString = (expiry) => {
+    if (!expiry) return "";
+    const d = new Date(expiry);
+    if (Number.isNaN(d.getTime())) return "";
 
-    const tableColumn = ["Sr No.", "Name", "Admin", "Package", "Email", "Status", "Expiry"];
-    const tableRows = users.map((u, i) => [
-      ((pagination?.page || 1) - 1) * (pagination?.limit || 10) + i + 1,
-      u.name,
-      u.admin?.name || "No Admin",
-      u.packages?.name || "No Package",
-      u.email,
-      u.isActive ? "Active" : "Inactive",
-      u.date ? new Date(u.date).toLocaleDateString() : "-",
-    ]);
-
-    autoTable(doc, {
-      startY: 25,
-      head: [tableColumn],
-      body: tableRows,
-      theme: "grid",
-      headStyles: { fillColor: [41, 128, 185] },
+    const locale = d.toLocaleDateString();
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const dmy = `${dd}-${mm}-${yyyy}`;
+    const monthName = d.toLocaleString("en-US", {
+      month: "short",
+      year: "numeric",
     });
 
-    doc.save("DraftUsers.pdf");
+    return `${locale} ${dmy} ${monthName}`.toLowerCase();
+  };
+
+  // --- Search filter ---
+  const filteredUsers = useMemo(() => {
+    const term = normalize(searchTerm);
+    if (!term) return users;
+
+    return users.filter((u) => {
+      const name = normalize(u.name);
+      const email = normalize(u.email);
+      const pkg = normalize(u.packages?.name);
+      const admin = normalize(u.admin?.name);
+      const status = u.status ? "active" : "inactive";
+      const expiryStr = expirySearchString(u.expiry);
+
+      return (
+        name.includes(term) ||
+        email.includes(term) ||
+        pkg.includes(term) ||
+        admin.includes(term) ||
+        status.includes(term) ||
+        expiryStr.includes(term)
+      );
+    });
+  }, [users, searchTerm]);
+
+  // --- Pagination ---
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 
   return (
@@ -138,20 +149,20 @@ function DraftComp() {
           <h4>Draft Users List</h4>
 
           <button className="type" onClick={() => navigate("/admin/manage-user")}>
-            â† Back
+            ← Back
           </button>
         </div>
 
         <div className="go">
           <div className="mygo">
-            <p onClick={exportToExcel}>Excel</p>
-            <p onClick={exportToPDF}>PDF</p>
+            <p style={{ cursor: "pointer" }}>Excel</p>
+            <p style={{ cursor: "pointer" }}>PDF</p>
           </div>
 
           <input
             type="text"
             className="search"
-            placeholder="Search by name / email / admin / package / status..."
+            placeholder="Search name / email / status / expiry date..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -160,103 +171,150 @@ function DraftComp() {
           />
         </div>
 
-        <div className="table-wrapper">
-          <table>
-            <thead>
+        <table className="mytable">
+          <thead>
+            <tr>
+              <th className="myth">Sr.No.</th>
+              <th className="myth">Name</th>
+              <th className="myth">Package</th>
+              <th className="myth">Admin</th>
+              <th className="myth">Email Id</th>
+              <th className="myth">Password</th>
+              <th className="myth">Status</th>
+              <th className="myth">Expiry</th>
+              <th className="myth">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {currentItems.length > 0 ? (
+              currentItems.map((user, index) => (
+                <tr key={user._id}>
+                  <td className="mytd">{indexOfFirstItem + index + 1}</td>
+                  <td className="mytd">{user.name}</td>
+                  <td className="mytd">{user.packages?.name || "No Package"}</td>
+                  <td className="mytd">{user.admin?.name || "-"}</td>
+                  <td className="mytd">{user.email}</td>
+                  <td className="mytd">{user.password}</td>
+
+                  <td className="mytd">
+                    {user.status ? (
+                      <span style={{ color: "green", fontWeight: "bold" }}>
+                        Active
+                      </span>
+                    ) : (
+                      <span style={{ color: "red", fontWeight: "bold" }}>
+                        InActive
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="mytd">
+                    {user.expiry
+                      ? new Date(user.expiry).toLocaleDateString()
+                      : "-"}
+                  </td>
+
+                  <td className="mybtnnns">
+                    <button
+                      className="edit"
+                      onClick={() =>
+                        navigate("/admin/manage-user/add-user", {
+                          state: { userToEdit: user },
+                        })
+                      }
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className="delete"
+                      onClick={() => handleDeleteUser(user._id)}
+                    >
+                      Delete
+                    </button>
+
+                    {user.status ? (
+                      <button
+                        className="inactive"
+                        onClick={() => handleDeactivateUser(user._id)}
+                      >
+                        Deactivate
+                      </button>
+                    ) : (
+                      <button
+                        className="active"
+                        onClick={() => handleAcivateUser(user._id)}
+                      >
+                        Activate
+                      </button>
+                    )}
+
+                    {/* ✅ Remove Draft */}
+                    <button
+                      className="draft"
+                      onClick={() => handleRemoveFromDraft(user._id)}
+                      title="Move this user back to Manage Users"
+                    >
+                      Remove Draft
+                    </button>
+
+                    <button
+                      className="report"
+                      onClick={() =>
+                        navigate("/admin/manage-user/report", {
+                          state: { user: user },
+                        })
+                      }
+                    >
+                      Report
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
               <tr>
-                <th>Sr.No.</th>
-                <th>Name</th>
-                <th>Admin</th>
-                <th>Package Taken</th>
-                <th>Email Id</th>
-                <th>Status</th>
-                <th>Goal Status</th>
-                <th>Expiry Date</th>
-                <th>Action</th>
+                <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
+                  No draft users found
+                </td>
               </tr>
-            </thead>
+            )}
+          </tbody>
+        </table>
 
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
-                    Loading draft users...
-                  </td>
-                </tr>
-              ) : users.length > 0 ? (
-                users.map((u, index) => (
-                  <tr key={u._id}>
-                    <td>{((pagination?.page || 1) - 1) * (pagination?.limit || 10) + index + 1}</td>
-                    <td>{u.name}</td>
-                    <td>{u.admin?.name || "No Admin"}</td>
-                    <td>{u.packages?.name || "No Package"}</td>
-                    <td>{u.email}</td>
-
-                    <td>
-                      {u.isActive ? (
-                        <span style={{ color: "green", fontWeight: "bold" }}>Active</span>
-                      ) : (
-                        <span style={{ color: "red", fontWeight: "bold" }}>Inactive</span>
-                      )}
-                    </td>
-                    <td>{(u.completedPages ?? u.currentIndex ?? 0)}/{getPackagePageLimit(u.packages)}</td>
-
-                    <td>{u.date ? new Date(u.date).toLocaleDateString() : "-"}</td>
-
-                    <td className="mybtnnns">
-                      <button
-                        className="edit"
-                        onClick={() =>
-                          navigate("/admin/manage-user/add-user", { state: { userToEdit: u } })
-                        }
-                      >
-                        Edit
-                      </button>
-
-                      <button className="delete" onClick={() => handleDelete(u._id)}>
-                        Delete
-                      </button>
-
-                      {u.isActive ? (
-                        <button className="inactive" onClick={() => handleDeactivate(u._id)}>
-                          Deactivate
-                        </button>
-                      ) : (
-                        <button className="active" onClick={() => handleActivate(u._id)}>
-                          Activate
-                        </button>
-                      )}
-
-                      <button className="draft" onClick={() => handleRemoveFromDraft(u._id)}>
-                        Remove Draft
-                      </button>
-
-                      <button
-                        className="report"
-                        onClick={() =>
-                          navigate("/admin/manage-user/result", { state: { user: u } })
-                        }
-                      >
-                        Report
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="9" style={{ textAlign: "center", color: "gray" }}>
-                    No draft users found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <PaginationControls pagination={pagination} onPageChange={setCurrentPage} />
+        {filteredUsers.length > 0 && (
+          <div className="pagination-container">
+            <div className="pagination">
+              <button onClick={() => goToPage(1)} disabled={currentPage === 1}>
+                «
+              </button>
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                ‹
+              </button>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                ›
+              </button>
+              <button
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                »
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default DraftComp;
+export default DraftsComp;

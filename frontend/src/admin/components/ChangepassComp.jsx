@@ -1,69 +1,86 @@
 import React, { useState } from "react";
-import "../../Admin/Styles/asa.css";
+import "../styles/form.css";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import axios from 'axios'
-import { API_BASE } from "../../utils/api";
 
-function ChangePassComp() {
-
+function ChangepassComp() {
   const navigate = useNavigate();
-  
+
   const [password, setPassword] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [newpassError, setNewPassError] = useState("");
+  const [newpassword, setNewPassword] = useState("");
 
-  const id = localStorage.getItem("adminId");
+  const handleChangePassword = async () => {
+    const token = localStorage.getItem("token");
 
-  const handlesubmit = async() => {
-    setNewPassError('');
-
-    let valid = true;
-
-    if(newPass.length<5){
-      setNewPassError('Password Length should not be less than 5');
-      valid = false;
+    if (!password || !newpassword) {
+      alert("Please Fill All the Fields");
+      return;
     }
 
-    if(valid){
-      try{
-        const res = await axios.put(`${API_BASE}/admin/${id}/change-password`,{
-            password, newPassword:newPass
-        })
-        alert(res.data.message);
-        navigate('/admin/home');
-      }
-      catch(err){
-        if(err.response && err.response.data && err.response.data.message){
-          alert(err.response.data.message);
+    if (!token) {
+      alert("No token found, please login again");
+      navigate("/admin/login");
+      return;
+    }
+
+    try {
+      const res = await axios.put(
+        `https://api.freelancing-projects.com/api/admin/change-password`,
+        { password, newpassword },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-        else{
-          alert('Server Error');
-        }
+      );
+
+      alert(res.data.message);
+      setPassword("");
+      setNewPassword("");
+      navigate("/admin/dashboard");
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.message) {
+        alert(err.response.data.message);
+      } else {
+        alert("Password Change Failed");
       }
     }
-  }
-
-
+  };
 
   return (
-    <div className="asacomp">
-      <h3>Change Password</h3>
-      <div className="inasacomp">
-        <h4>Enter Basic Details</h4>
-        <div className="form">
+    <div className="userform">
+      <h2>Change Password</h2>
 
-          <input type="text" placeholder="Enter Current Password*" value={password} required onChange={(e) => setPassword(e.target.value)}/>
+      <div className="form1">
+        <h3>Enter Details</h3>
 
-          <input type="text" placeholder="Enter New Password" value={newPass} required onChange={(e) => setNewPass(e.target.value)}/>
-             {newpassError && <p className="error">{newpassError}</p>}
+        <div className="inform">
+          <input
+            type="text"
+            placeholder="Enter Previous Password*"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <input
+            type="text"
+            placeholder="Enter New Password*"
+            value={newpassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
         </div>
-        <div className="bttns">
-          <button className="cancel" onClick={() => navigate('/admin/login')}>Cancel</button>
-          <button className="submit" onClick={handlesubmit}>Submit</button>
+
+        <div className="btnnns">
+          <button className="cancel" onClick={() => navigate("/admin/dashboard")}>
+            Cancel
+          </button>
+          <button className="submit" onClick={handleChangePassword}>
+            Submit
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-export default ChangePassComp;
+export default ChangepassComp;

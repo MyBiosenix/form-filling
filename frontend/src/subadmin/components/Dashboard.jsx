@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import '../../Admin/Styles/dash.css'
+import '../../admin/styles/dash.css'
 import {FaUserShield, FaUsers, FaUserCheck, FaUserSlash, FaClock} from 'react-icons/fa'
 import axios from 'axios';
-import { API_BASE } from '../../utils/api';
-import { getSubAdminToken } from '../../utils/auth';
+import { useNavigate } from 'react-router-dom';
 
 function Dashboard() {
 
@@ -15,8 +14,8 @@ function Dashboard() {
 
     const getStats = async() => {
         try{
-            const token = getSubAdminToken();
-            const res = await axios.get(`${API_BASE}/sub-admin/stats`,{
+            const token = localStorage.getItem('token');
+            const res = await axios.get('https://api.freelancing-projects.com/api/sub-admin/stats',{
                 headers:{
                     Authorization:`Bearer ${token}`
                 }
@@ -68,7 +67,8 @@ function Dashboard() {
                 </div>
             </div>
 
-            <div className='box'>
+            
+            {/* <div className='box'>
                 <FaClock className='icn'/>
                 <div className='inbox'>
                     <h5>Expiring Soon</h5>
@@ -82,7 +82,7 @@ function Dashboard() {
                     <h5>Targets Achieved</h5>
                     <h4>{targetAchievedUsers}</h4>
                 </div>
-            </div>
+            </div> */}
         </div>
     </div>
   )

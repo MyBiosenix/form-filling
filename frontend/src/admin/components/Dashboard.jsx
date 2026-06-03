@@ -1,132 +1,112 @@
-import React, { useEffect, useState } from 'react'
-import '../Styles/dash.css'
-import {FaUserShield, FaUsers, FaUserCheck, FaUserSlash, FaClock} from 'react-icons/fa'
-import axios from 'axios';
+import axios from 'axios'
+import '../styles/dash.css'
+import { FaUserShield, FaUsers, FaUserCheck, FaUserSlash, FaClock } from 'react-icons/fa'
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE } from "../../utils/api";
-import { getAdminToken } from "../../utils/auth";
-import { unwrapPaginatedResponse } from "../../utils/pagination";
 
 function Dashboard() {
     const [admins, setAdmins] = useState(0);
     const [users, setUsers] = useState(0);
     const [activeUsers, setActiveUsers] = useState(0);
-    const [inActiveUsers, setInactiveUsers] = useState(0);
+    const [inactiveUsers, setInActiveUsers] = useState(0);
     const [expiringSoon, setExpiringSoon] = useState(0);
-    const [targetsachieved, setTargetsAchieved] = useState(0);
+    const [targetsAchieved, setTargetsAchieved] = useState(0);
 
     const navigate = useNavigate();
 
-    const getStats = async() => {
+    const token = localStorage.getItem('token');
+    const getDashboardStats = async() => {
         try{
-            const token = getAdminToken();
-            const res = await axios.get(`${API_BASE}/admin/dash-stats`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
+            const res = await axios.get('https://api.freelancing-projects.com/api/admin/get-dashstats',
+                {
+                    headers:{
+                        Authorization:`Bearer ${token}`
+                    }
+                }
+            )
             setAdmins(res.data.totalAdmins);
             setUsers(res.data.totalUsers);
-            setActiveUsers(res.data.activeUsers);
-            setInactiveUsers(res.data.InactiveUsers);
+            setActiveUsers(res.data.totalActiveUsers);
+            setInActiveUsers(res.data.totalInActiveUsers);
+            setExpiringSoon(res.data.totalExpiringSoon);
+            setTargetsAchieved(res.data.totalTargetsAchieved);
         }
-        catch (err) {
-            if (err.response && err.response.data && err.response.data.message) {
+        catch(err){
+            if(err.response && err.response.data && err.response.data.message){
                 alert(err.response.data.message);
-            } else {
-                alert('Error Fetching User');
+            }
+            else{
+                alert('Error Getting Stats');
             }
         }
     }
 
-    const getexpiringSoon = async() => {
-        try{
-            const token = getAdminToken();
-            const res = await axios.get(`${API_BASE}/auth/expiring-soon`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-              params: { page: 1, limit: 1 },
-            })
-            const { pagination } = unwrapPaginatedResponse(res.data);
-            setExpiringSoon(pagination?.total || 0);
-        }
-        catch{
-            setExpiringSoon(0);
-        }
-    }
-
-    const getTargetsAchieved = async() => {
-        try{
-            const token = getAdminToken();
-            const res = await axios.get(`${API_BASE}/auth/targets-achieved`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-              params: { page: 1, limit: 1 },
-            })
-            const { pagination } = unwrapPaginatedResponse(res.data);
-            setTargetsAchieved(pagination?.total || 0);
-        }
-        catch{
-            setTargetsAchieved(0);
-        }
-    }
-
-    useEffect(() => {
-        getStats();
-        getexpiringSoon();
-        getTargetsAchieved();
+    useEffect(()=>{
+        getDashboardStats();
     },[]);
 
   return (
-    <div className='mydassh'>
-        <h3>Dashboard</h3>
-        <div className='boxes'>
-            <div className='box-purple' onClick={()=>navigate('/admin/manage-admin')}>
-                <FaUserShield className='icn'/>
-                <div className='inbox'>
-                    <h5>Total Admins</h5>
-                    <h4>{admins}</h4>
-                </div>
-            </div>
+    <div className="mydassh1">
+        <div className="dashHeader1">
+        <div>
+            <h3 className="dashTitle1">Dashboard</h3>
+            <p className="dashSub1">Quick overview of admins, users, expiry & targets.</p>
+        </div>
+        </div>
 
-            <div className='box-blue' onClick={()=>navigate('/admin/manage-user')}>
-                <FaUsers className='icn'/>
-                <div className='inbox'>
-                    <h5>Total Users</h5>
-                    <h4>{users}</h4>
-                </div>
-            </div>
-
-            <div className='box-green' onClick={() => navigate('/admin/active-users')}>
-                <FaUserCheck className='icn'/>
-                <div className='inbox'>
-                    <h5>Active Users</h5>
-                    <h4>{activeUsers}</h4>
-                </div>
-            </div>
-
-            <div className='box-red' onClick={() => navigate('/admin/inactive-users')}>
-                <FaUserSlash className='icn'/>
-                <div className='inbox'>
-                    <h5>Deactivated Users</h5>
-                    <h4>{inActiveUsers}</h4>
-                </div>
-            </div>
-
-            <div className='box-amber' onClick={()=>navigate('/admin/expiring-users')}>
-                <FaClock className='icn'/>
-                <div className='inbox'>
-                    <h5>Expiring Soon</h5>
-                    <h4>{expiringSoon}</h4>
-                </div>
-            </div>
-
-            <div className='box-teal' onClick={()=>navigate('/admin/targets-achieved')}>
-                <FaClock className='icn'/>
-                <div className='inbox'>
-                    <h5>Targets Achieved</h5>
-                    <h4>{targetsachieved}</h4>
-                </div>
+        <div className="boxes1">
+        <div className="box1" onClick={() => navigate("/admin/manage-admin")}>
+            <div className="iconWrap1"><FaUserShield /></div>
+            <div className="inbox1">
+            <h5>Total Admins</h5>
+            <h4>{admins}</h4>
             </div>
         </div>
+
+        <div className="box1" onClick={() => navigate("/admin/manage-user")}>
+            <div className="iconWrap1"><FaUsers /></div>
+            <div className="inbox1">
+            <h5>Total Users</h5>
+            <h4>{users}</h4>
+            </div>
+        </div>
+
+        <div className="box1" onClick={() => navigate("/admin/active-users")}>
+            <div className="iconWrap1"><FaUserCheck /></div>
+            <div className="inbox1">
+            <h5>Active Users</h5>
+            <h4>{activeUsers}</h4>
+            </div>
+        </div>
+
+        <div className="box1" onClick={() => navigate("/admin/deactivated-users")}>
+            <div className="iconWrap1"><FaUserSlash /></div>
+            <div className="inbox1">
+            <h5>Deactivated Users</h5>
+            <h4>{inactiveUsers}</h4>
+            </div>
+        </div>
+
+        {/* change route if you have pages */}
+        <div className="box1" onClick={() => navigate("/admin/expiring-soon")}>
+            <div className="iconWrap1"><FaClock /></div>
+            <div className="inbox1">
+            <h5>Expiring Soon</h5>
+            <h4>{expiringSoon}</h4>
+            </div>
+        </div>
+
+        <div className="box1" onClick={() => navigate("/admin/targets-achieved")}>
+            <div className="iconWrap1"><FaClock /></div>
+            <div className="inbox1">
+            <h5>Targets Achieved</h5>
+            <h4>{targetsAchieved}</h4>
+            </div>
+        </div>
+        </div>
     </div>
-  )
+    );
+
 }
 
 export default Dashboard

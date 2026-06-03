@@ -1,11 +1,11 @@
 import React from 'react'
-import '../../Admin/Styles/macomp.css'
-import Header from '../Components/Header'
-import SMpComp from '../Components/SMpComp'
+import '../../admin/styles/ma.css'
+import Header from '../components/Header'
+import SMpComp from '../components/SMpComp'
 
 function SMP() {
   return (
-    <div className='Macomp'>
+    <div className='adminpage'>
         <Header/>
         <SMpComp/>
     </div>

@@ -4,7 +4,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: url(../../assets/adback.jpg);
+    background: url(../../assets/back2.jpg);
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -55,7 +55,7 @@ label{
     font-size: 18px;       
     font-weight: 600;     
     color: white;          
-    background: linear-gradient(135deg, #6a11cb, #2575fc); 
+    background: linear-gradient(180deg, #1b8f2f, #0f7a24); 
     border: none;
     border-radius: 25px;  
     cursor: pointer;
@@ -104,4 +104,23 @@ label{
         width: 100%;
         border-radius: 3px;
     }
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 40px; 
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
 }

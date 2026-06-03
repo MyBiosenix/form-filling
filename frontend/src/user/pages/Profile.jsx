@@ -1,13 +1,12 @@
 import React from 'react'
-import Header from '../Components/Header';
-import ProfileComp from '../Components/ProfileComp';
-import '../Styles/profile.css' 
+import ProfileComp from '../components/ProfileComp'
+import Header from '../components/Header'
 
 function Profile() {
   return (
-    <div className='profile'>
-        <Header/>
-        <ProfileComp/>
+    <div className='myhome'>
+      <Header/>
+      <ProfileComp/>
     </div>
   )
 }

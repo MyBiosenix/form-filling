@@ -1,11 +1,11 @@
 import React from 'react'
-import '../../Admin/Styles/macomp.css'
-import Header from '../Components/Header'
-import SAUComp from '../Components/SAUComp'
+import '../../admin/styles/ma.css'
+import Header from '../components/Header'
+import SAUComp from '../components/SAUComp'
 
 function SAU() {
   return (
-    <div className='Macomp'>
+    <div className='adminpage'>
         <Header/>
         <SAUComp/>
     </div>

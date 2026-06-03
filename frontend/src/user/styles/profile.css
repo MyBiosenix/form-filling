@@ -1,209 +1,201 @@
-.profile-page{
-  height: 100vh;
-  width: 100vw;
-  background: #f3f6fb;
+.profileShell {
+  min-height: calc(100vh - 60px);
+  padding: 26px 14px;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 28px 14px;
-  box-sizing: border-box;
+  background: #f6f7fb;
 }
 
-.profile-shell{
-  width: min(1120px, 100%);
-  background: #ffffff;
-  border-radius: 18px;
+.profileLoading {
+  padding: 20px;
+  text-align: center;
+  color: #444;
+}
+
+/* CARD */
+.proProfileCard {
+  width: 980px;
+  max-width: 96vw;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
   overflow: hidden;
-  display: flex;
-  margin-top: -50px;
-  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.10);
+  display: grid;
+  grid-template-columns: 280px 1fr;
 }
 
 /* LEFT */
-.profile-sidebar{
-  width: 280px;
-  background: #1e293b; /* green like screenshot */
-  padding: 28px 22px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+.ppLeft {
+  padding: 22px 18px;
+  color: #fff;
+  background: linear-gradient(145deg, green, green);
+  position: relative;
 }
 
-.profile-avatar{
+.ppAvatar {
   width: 110px;
   height: 110px;
-  border-radius: 16px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
   background: rgba(255,255,255,0.16);
-  display: grid;
-  place-items: center;
+  border: 1px solid rgba(255,255,255,0.25);
+  backdrop-filter: blur(6px);
   position: relative;
-  border: 1px solid rgba(255,255,255,0.22);
+  overflow: hidden;
 }
 
-.avatar-circle{
-  width: 74px;
-  height: 74px;
-  border-radius: 999px;
-  background: #ffffff;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 22px;
-  color: #1e293b;
-}
-
-.avatar-dot{
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #27c84a;
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  border: 2px solid rgba(10,122,10,0.9);
-}
-
-.profile-mini{
-  color: #fff;
-}
-
-.profile-name{
-  margin: 8px 0 4px;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-}
-
-.profile-tier{
-  margin: 0 0 12px;
-  font-size: 14px;
+.ppUserIcon {
+  font-size: 64px;
   opacity: 0.9;
-  font-weight: 600;
 }
 
-.status-pill{
-  display: inline-flex;
-  padding: 7px 14px;
+.ppInitials {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  font-size: 14px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-weight: 700;
-  font-size: 13px;
-  border: 1px solid rgba(255,255,255,0.35);
-  background: rgba(0,0,0,0.10);
-  width: fit-content;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.25);
 }
 
-.status-pill.expired{
-  background: rgba(0,0,0,0.12);
+.ppName {
+  margin: 14px 0 4px 0;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
-.status-pill.active{
-  background: rgba(255,255,255,0.14);
-}
-
-/* RIGHT */
-.profile-content{
-  flex: 1;
-  padding: 26px 28px;
-  box-sizing: border-box;
-  background: #ffffff;
-}
-
-.content-head{
-  padding: 6px 0 18px;
-}
-
-.content-title{
+.ppRole {
   margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  color: #111827;
-}
-
-.content-sub{
-  margin: 6px 0 0;
-  color: #6b7280;
   font-size: 13px;
+  opacity: 0.92;
 }
 
-.info-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.info-card{
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 14px 14px;
-}
-
-.info-card--full{
-  grid-column: 1 / -1;
-}
-
-.info-top{
+.ppBadges {
+  margin-top: 14px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #4b5563;
-  font-weight: 700;
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-
-.info-icon{
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  display: grid;
-  place-items: center;
-  font-size: 14px;
-}
-
-.info-label{
-  letter-spacing: 0.2px;
-}
-
-.info-value{
-  font-size: 14px;
-  color: #111827;
-  font-weight: 700;
-  word-break: break-word;
-}
-
-.validity-row{
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.expired-text{
-  color: #dc2626;
+.ppBadge {
+  font-size: 12px;
   font-weight: 800;
-  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.14);
 }
 
-/* Responsive */
-@media (max-width: 860px){
-  .profile-shell{
-    flex-direction: column;
-    margin-top: 350px;
-  }
-  .profile-sidebar{
-    width: 100%;
-    flex-direction: row;
-    align-items: center;
-    gap: 18px;
-  }
-  .profile-mini{
-    flex: 1;
-  }
-  .info-grid{
+.ppBadge.success { background: rgba(16, 185, 129, 0.22); }
+.ppBadge.danger  { background: rgba(239, 68, 68, 0.22); }
+.ppBadge.ghost   { background: rgba(255,255,255,0.12); }
+
+
+/* RIGHT */
+.ppRight {
+  padding: 22px 22px;
+  background: #fff;
+}
+
+.ppRightHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ppTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.ppSub {
+  margin: 6px 0 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* INFO GRID */
+.ppGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ppItem {
+  border: 1px solid rgba(0,0,0,0.06);
+  background: #fafbff;
+  border-radius: 12px;
+  padding: 12px 12px;
+}
+
+.ppItem.full {
+  grid-column: 1 / -1;
+}
+
+.ppLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.ppValue {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.ppMiniNote {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.ppMiniNote.danger {
+  color: #b91c1c;
+}
+
+/* RESPONSIVE */
+@media (max-width: 860px) {
+  .proProfileCard {
     grid-template-columns: 1fr;
+  }
+  .ppLeft {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 14px;
+    align-items: center;
+  }
+  .ppLeftHint {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ppGrid {
+    grid-template-columns: 1fr;
+  }
+  .ppAvatar {
+    width: 96px;
+    height: 96px;
+  }
+  .ppUserIcon {
+    font-size: 56px;
   }
 }

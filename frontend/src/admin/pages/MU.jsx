@@ -1,13 +1,13 @@
 import React from 'react'
-import '../Styles/macomp.css'
-import Header from '../Components/Header'
-import MuComp from '../Components/MuComp'
+import '../styles/ma.css'
+import Header from '../components/Header' 
+import MuComp from '../components/MuComp'
 
 function MU() {
   return (
-    <div className='Macomp'>
-        <Header/>
-        <MuComp/>
+    <div className='adminpage'>
+      <Header/>
+      <MuComp/>
     </div>
   )
 }

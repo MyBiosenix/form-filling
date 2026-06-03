@@ -1,19 +1,24 @@
-import React, { useEffect, useState } from "react";
-import "../Styles/dashboard.css";
+import "../styles/userDash.css";
 import { MdSubscriptions, MdOutlineTrackChanges } from "react-icons/md";
 import { FaBullseye, FaChartLine } from "react-icons/fa";
-import axios from "../utils/axiosInstance";
+import axios from "axios";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [error, setError] = useState(null);
-  const [timeLeft, setTimeLeft] = useState("");
+  const [packageName, setPackageName] = useState("");
+  const [goal, setGoal] = useState(0);
+  const [goalStatus, setGoalStatus] = useState(0);
+  const [isComplete, setIsComplete] = useState(true);
   const [softwareUsed, setSoftwareUsed] = useState(false);
   const [notInSequence, setNotInSequence] = useState(false);
-  const [isComplete, setIsComplete] = useState(true);
-  const [isDeclared, setIsDeclared] = useState(false);
 
+  const [myUser, setMyUser] = useState(null);
+  const [reportDeclared, setReportDeclared] = useState(false);
+  const [timeLeft, setTimeLeft] = useState("");
+
+  const token = localStorage.getItem("token");
+  const id = localStorage.getItem("userId");
   const navigate = useNavigate();
 
   const formatDateTimeIN = (v) => {
@@ -21,40 +26,70 @@ function Dashboard() {
     const d = new Date(v);
     if (isNaN(d.getTime())) return "-";
     return d.toLocaleString("en-IN", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "numeric", minute: "2-digit", hour12: true,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
     });
   };
 
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const userId = localStorage.getItem("userId");
-        if (!userId) { setError("No user ID found"); return; }
-
-        const { data } = await axios.get(`/auth/${userId}/dash-stats`);
-
-        setStats(data);
-        setSoftwareUsed(!!data?.softwareUsed);
-        setNotInSequence(!!data?.notInSequence);
-        setIsComplete(data?.isComplete === false ? false : true);
-        setIsDeclared(!!(data?.isDeclared ?? data?.reportDeclared));
-      } catch (err) {
-        setError("Error fetching dashboard stats: " + err.message);
-      }
-    };
-
-    fetchAll();
+    const users = localStorage.getItem("user");
+    if (users) {
+      try { setMyUser(JSON.parse(users)); }
+      catch { setMyUser(null); }
+    } else {
+      setMyUser(null);
+    }
   }, []);
 
+  const getStats = async () => {
+    try {
+      const res = await axios.get(
+        `https://api.freelancing-projects.com/api/user/${id}/get-dashstats`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPackageName(res.data.packageName);
+      setGoal(res.data.goal);
+      setGoalStatus(res.data.totalFormsDone);
+      setReportDeclared(!!res.data.reportDeclared);
+      setIsComplete(res.data?.isComplete === false ? false : true);
+      setSoftwareUsed(!!res.data?.softwareUsed);
+      setNotInSequence(!!res.data?.notInSequence);
+
+      if (res.data.expiry) {
+        setMyUser((prev) => {
+          const updated = prev
+            ? { ...prev, expiry: res.data.expiry }
+            : { expiry: res.data.expiry };
+          try { localStorage.setItem("user", JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Error Getting Dashboard Stats");
+    }
+  };
+
   useEffect(() => {
-    if (!stats?.validTill) return;
+    if (id && token) getStats();
+  }, [id, token]);
+
+  useEffect(() => {
+    if (!myUser?.expiry) { setTimeLeft("-"); return; }
+
     const pad = (n) => String(n).padStart(2, "0");
+
     const compute = () => {
-      const expiry = new Date(stats.validTill);
+      const expiry = new Date(myUser.expiry);
       if (isNaN(expiry.getTime())) { setTimeLeft("-"); return; }
+
       const diff = expiry.getTime() - new Date().getTime();
       if (diff <= 0) { setTimeLeft("Expired"); return; }
+
       const totalSeconds = Math.floor(diff / 1000);
       const days = Math.floor(totalSeconds / (3600 * 24));
       const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
@@ -62,72 +97,91 @@ function Dashboard() {
       const seconds = totalSeconds % 60;
       setTimeLeft(`${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
     };
+
     compute();
     const interval = setInterval(compute, 1000);
     return () => clearInterval(interval);
-  }, [stats?.validTill]);
+  }, [myUser?.expiry]);
 
-  // ── Report card content ──
+  // ── Report card content based on flags ──
   const getReportCardContent = () => {
-    if (!isDeclared)    return { label: "Not Declared",  sub: null };
-    if (softwareUsed)   return { label: "Unavailable",   sub: "Software Used Detected" };
-    if (notInSequence)  return { label: "Unavailable",   sub: "Not In Sequence" };
-    if (!isComplete)    return { label: "Incomplete",    sub: "Work Marked Incomplete" };
-    return { label: "See Results", sub: null };
+    if (!reportDeclared)  return { label: "Not Declared",  sub: null };
+    if (softwareUsed)     return { label: "Unavailable",   sub: "Software Used Detected" };
+    if (notInSequence)    return { label: "Unavailable",   sub: "Not In Sequence" };
+    if (!isComplete)      return { label: "Incomplete",    sub: "Work Marked Incomplete" };
+    return { label: "Click to See", sub: null };
   };
 
   const { label: reportLabel, sub: reportSub } = getReportCardContent();
-  const reportWarning = softwareUsed || notInSequence || !isComplete;
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (!stats) return <p className="load">Loading dashboard...</p>;
+  if (!myUser) return <p>Loading Profile...</p>;
 
   return (
-    <div className="dashboard">
+    <div className="mydassh">
       <h3>Dashboard</h3>
 
-      <div className="indash">
-        <div className="dash" onClick={() => navigate("/profile")}>
-          <h4>Plan</h4>
-          <MdSubscriptions className="dashicon" />
-          <h5>{stats.package}</h5>
-          <p>Data Conversion</p>
+      <div className="boxes">
+
+        <div className="box" onClick={() => navigate("/profile")}>
+          <MdSubscriptions className="icn" />
+          <div className="inbox">
+            <h5>Plan</h5>
+            <h4>{packageName}</h4>
+            <p className="forms">Data Segregation</p>
+          </div>
         </div>
 
-        <div className="dash" onClick={() => navigate("/work")}>
-          <h4>Goal</h4>
-          <FaBullseye className="dashicon" />
-          <h5>{stats.goal}</h5>
-          <p>Pages</p>
+        <div className="box" onClick={() => navigate("/work")}>
+          <FaBullseye className="icn" />
+          <div className="inbox">
+            <h5>Goal</h5>
+            <h4>{goal}</h4>
+            <p className="forms">Forms</p>
+          </div>
         </div>
 
-        <div className="dash" onClick={() => navigate("/view")}>
-          <h4>Goal Status</h4>
-          <MdOutlineTrackChanges className="dashicon" />
-          <h5>{stats.completed}</h5>
-          <p>Done</p>
+        <div className="box" onClick={() => navigate("/entries")}>
+          <MdOutlineTrackChanges className="icn" />
+          <div className="inbox">
+            <h5>Goal Status</h5>
+            <h4>{goalStatus}</h4>
+            <p className="forms">Forms</p>
+          </div>
         </div>
 
-        <div className="dash" onClick={() => navigate("/report")}>
-          <h4>Report</h4>
-          <FaChartLine className="dashicon" />
-          <h5 style={{ color: reportWarning ? "#b91c1c" : "inherit" }}>
-            {reportLabel}
-          </h5>
-          {reportSub ? (
-            <p style={{ color: "#b91c1c", fontWeight: 600, fontSize: 11, margin: 0 }}>
-              {reportSub}
-            </p>
-          ) : (
-            <p>Under Review</p>
-          )}
+        <div className="box" onClick={() => navigate("/result")}>
+          <FaChartLine className="icn" />
+          <div className="inbox">
+            <h5>Report</h5>
+            <h4
+              style={{
+                color:
+                  softwareUsed || notInSequence || !isComplete
+                    ? "#b91c1c"
+                    : "inherit",
+              }}
+            >
+              {reportLabel}
+            </h4>
+            {reportSub ? (
+              <p
+                className="forms"
+                style={{ color: "#b91c1c", fontWeight: 600, fontSize: 11 }}
+              >
+                {reportSub}
+              </p>
+            ) : (
+              <p className="forms">Your Reports</p>
+            )}
+          </div>
         </div>
+
       </div>
 
-      <p className="valid">
-        Subscription Validity: {formatDateTimeIN(stats.validTill)}
+      <p style={{ textAlign: "center", marginBottom: "6px" }}>
+        <strong>Subscription Validity:</strong> {formatDateTimeIN(myUser.expiry)}
       </p>
-      <p className={`timer ${timeLeft === "Expired" ? "expired" : ""}`}>
+      <p style={{ textAlign: "center", fontWeight: 700 }}>
         Time Left: {timeLeft}
       </p>
     </div>

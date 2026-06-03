@@ -1,126 +1,76 @@
-import React, { useEffect, useState } from "react";
-import "../Styles/reports.css";
-import { useNavigate } from "react-router-dom";
-import http from "../../utils/http";
-import { getStoredUserId, getUserToken } from "../../utils/auth";
-import "../Styles/cp.css"; // For shared styles like .back
+import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import '../styles/view.css'
 
-function ViewComp() {
-  const [results, setResults] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const userId = getStoredUserId();
-  const navigate = useNavigate();
+function MyResponses({ title = "My Responses" }) {
+  const [entries, setEntries] = useState([]);
 
   useEffect(() => {
-    const token = getUserToken();
-
-    if (!token || !userId) {
-      setError("Please login again.");
-      setResults([]);
-      return;
-    }
-
-    const fetchUserSnippets = async () => {
+    const fetchEntries = async () => {
       try {
-        setLoading(true);
-        setError("");
+        const token = localStorage.getItem("token");
 
-        const res = await http.get(`/snippet/user/${userId}`, {
-          params: {
-            limit: 100000,
-            sortBy: "pageNumber",
-            sortOrder: "asc",
-          },
+        const res = await axios.get("https://api.freelancing-projects.com/api/user/entries", {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        const responseData = res.data;
-
-        const rows = Array.isArray(responseData)
-          ? responseData
-          : Array.isArray(responseData?.data)
-          ? responseData.data
-          : Array.isArray(responseData?.results)
-          ? responseData.results
-          : Array.isArray(responseData?.data?.results)
-          ? responseData.data.results
-          : [];
-
-        setResults(rows);
+        const data = res.data || [];
+        data.sort((a, b) => a.formNo - b.formNo);
+        setEntries(data);
       } catch (err) {
-        setError(
-          err?.response?.data?.message || "Failed to fetch submitted pages."
-        );
-        setResults([]);
-      } finally {
-        setLoading(false);
+        console.log(err);
+        alert("Failed to load responses");
       }
     };
 
-    fetchUserSnippets();
-  }, [userId]);
+    fetchEntries();
+  }, []);
 
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [results]);
+  const headers = useMemo(() => {
+    if (!entries.length) return [];
+    return Object.keys(entries[0]?.responses || {});
+  }, [entries]);
 
   return (
-    <div className="report-page">
-      <p className="back-btn" onClick={() => navigate("/home")}>
-        <span>←</span> Back
-      </p>
+    <section className="rc-card">
+      <div className="rc-cardHeader">
+        <h3 className="rc-title">{title}</h3>
+        <p className="rc-subtitle">Your submitted forms and their captured responses</p>
+      </div>
 
-      <h2 className="report-title">All Submitted Pages</h2>
+      {!entries.length ? (
+        <div className="rc-empty">No data found</div>
+      ) : (
+        <div className="rc-tableWrap">
+          <table className="rc-table">
+            <thead>
+              <tr>
+                <th>Form No</th>
+                <th>Excel Row ID</th>
+                <th>TimeStamp</th>
+                {headers.map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
 
-      {error ? <p className="no-report">{error}</p> : null}
-
-      {loading ? (
-        <p className="no-report">Loading submitted pages...</p>
-      ) : !error && results.length > 0 ? (
-        <>
-          <div className="snippet-buttons">
-            {results.map((r, idx) => (
-              <button
-                key={r._id}
-                className={selectedIndex === idx ? "active-btn" : ""}
-                onClick={() => setSelectedIndex(idx)}
-              >
-                Page {r.pageNumber || idx + 1}
-              </button>
-            ))}
-          </div>
-
-          <div className="report-block">
-            <h3 className="snippet-title">
-              Page {results[selectedIndex]?.pageNumber || selectedIndex + 1}
-            </h3>
-
-            <div className="snippet-flex">
-              <div className="snippet-box original">
-                <h4>Original Image</h4>
-                <p>
-                  {results[selectedIndex]?.snippetId?.content ||
-                    "No original text found."}
-                </p>
-              </div>
-
-              <div className="snippet-box user">
-                <h4>Your Submitted Work</h4>
-                <p>
-                  {results[selectedIndex]?.userText ||
-                    "No user submission found."}
-                </p>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : !error ? (
-        <p className="no-report">No Submitted Work Found.</p>
-      ) : null}
-    </div>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e._id}>
+                  <td>{e.formNo}</td>
+                  <td>{e.excelRowId}</td>
+                  <td>{new Date(e.createdAt).toLocaleString()}</td>
+                  {headers.map((h) => (
+                    <td key={h}>{e.responses?.[h] || ""}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
-export default ViewComp;
+export default MyResponses;
