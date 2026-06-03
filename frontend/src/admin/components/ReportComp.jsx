@@ -183,13 +183,16 @@ const handleSummaryRowClick = (formNo) => {
 
     try {
       const token = localStorage.getItem("token");
-
-      const payload = {
-        formNo: row.formNo,
-        mistakes: row.mistakes,
-        mistakePercent: Number(String(row.mistakePercent).replace("%", "")),
-        visible: newValue,
-      };
+const payload = {
+  formNo: row.formNo,
+  excelRowId: row.excelRowId,
+  mistakes: row.mistakes,
+  actualMistakes: row.actualMistakes,
+  isDoubleEntry: !!row.isDoubleEntry,
+  mistakePercent: Number(String(row.mistakePercent).replace("%", "")),
+  visible: newValue,
+};
+      
 
       const res = await axios.post(
         `https://api.freelancing-projects.com/api/admin/${userId}/save-reports`,
@@ -304,20 +307,6 @@ const handleSummaryRowClick = (formNo) => {
 
   return set;
 }, [entries]);
-
-const doubleEntryFormSet = useMemo(() => {
-  const set = new Set();
-
-  for (const entry of entries) {
-    const rowId = Number(entry.excelRowId);
-
-    if (doubleEntryRowIds.has(rowId)) {
-      set.add(Number(entry.formNo));
-    }
-  }
-
-  return set;
-}, [entries, doubleEntryRowIds]);
 
   const comparisonRows = useMemo(() => {
     return entries.map((entry) => {

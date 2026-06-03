@@ -734,70 +734,103 @@ export default function ResultComp() {
     return set;
   }, [entries]);
 
-  const doubleEntryFormSet = useMemo(() => {
-    const set = new Set();
+const publishedFormNoSet = useMemo(() => {
+  return new Set(
+    (finalReports || []).map((r) => Number(r.formNo))
+  );
+}, [finalReports]);
 
-    for (const entry of entries) {
-      const rowId = Number(entry.excelRowId);
 
-      if (doubleEntryRowIds.has(rowId)) {
-        set.add(Number(entry.formNo));
-      }
+
+const doubleEntryFormSet = useMemo(() => {
+  const set = new Set();
+
+  for (const entry of entries) {
+    const formNo = Number(entry.formNo);
+    const rowId = Number(entry.excelRowId);
+
+    // ✅ Double entry should show only if:
+    // 1. this row is actually double entry
+    // 2. admin has published/toggled ON this form in finalReports
+    if (doubleEntryRowIds.has(rowId) && publishedFormNoSet.has(formNo)) {
+      set.add(formNo);
     }
+  }
 
-    return set;
-  }, [entries, doubleEntryRowIds]);
+  return set;
+}, [entries, doubleEntryRowIds, publishedFormNoSet]);
 
-  const adjustedFinalReports = useMemo(() => {
-    const reportMap = new Map();
+const adjustedFinalReports = useMemo(() => {
+  const reportMap = new Map();
 
-    for (const report of finalReports || []) {
-      reportMap.set(Number(report.formNo), {
-        ...report,
-        mistakes: Number(report.mistakes) || 0,
-        mistakePercent:
-          Number(report.mistakePercent) || Number(report.mistakes) || 0,
-        isDoubleEntry: !!report.isDoubleEntry,
+  for (const report of finalReports || []) {
+    reportMap.set(Number(report.formNo), {
+      ...report,
+      mistakes: Number(report.mistakes) || 0,
+      mistakePercent:
+        Number(report.mistakePercent) || Number(report.mistakes) || 0,
+      isDoubleEntry: !!report.isDoubleEntry,
+    });
+  }
+
+  for (const entry of entries) {
+    const formNo = Number(entry.formNo);
+    const rowId = Number(entry.excelRowId);
+
+    if (!doubleEntryRowIds.has(rowId)) continue;
+
+    const existing = reportMap.get(formNo);
+
+    if (existing) {
+      const alreadyMarkedDouble = existing.isDoubleEntry === true;
+
+      const mistakes = alreadyMarkedDouble
+        ? Number(existing.mistakes) || 0
+        : (Number(existing.mistakes) || 0) + 1;
+
+      reportMap.set(formNo, {
+        ...existing,
+        mistakes,
+        mistakePercent: mistakes,
+        isDoubleEntry: true,
+      });
+    } else {
+      reportMap.set(formNo, {
+        _id: entry._id || `double-${formNo}`,
+        formNo,
+        mistakes: 1,
+        mistakePercent: 1,
+        isDoubleEntry: true,
+        createdAt: entry.createdAt,
       });
     }
+  }
 
-    for (const entry of entries) {
-      const formNo = Number(entry.formNo);
-      const rowId = Number(entry.excelRowId);
+  return Array.from(reportMap.values()).sort(
+    (a, b) => Number(a.formNo) - Number(b.formNo)
+  );
+}, [finalReports, entries, doubleEntryRowIds]);
 
-      if (!doubleEntryRowIds.has(rowId)) continue;
+const publishedFinalReports = useMemo(() => {
+  return (finalReports || [])
+    .map((r) => {
+      const formNo = Number(r.formNo);
 
-      const existing = reportMap.get(formNo);
+      return {
+        ...r,
+        formNo,
+        mistakes: Number(r.mistakes) || 0,
+        mistakePercent:
+          Number(r.mistakePercent) || Number(r.mistakes) || 0,
 
-      if (existing) {
-        const alreadyMarkedDouble = existing.isDoubleEntry === true;
-
-        const mistakes = alreadyMarkedDouble
-          ? Number(existing.mistakes) || 0
-          : (Number(existing.mistakes) || 0) + 1;
-
-        reportMap.set(formNo, {
-          ...existing,
-          mistakes,
-          mistakePercent: mistakes,
-          isDoubleEntry: true,
-        });
-      } else {
-        reportMap.set(formNo, {
-          _id: entry._id || `double-${formNo}`,
-          formNo,
-          mistakes: 1,
-          mistakePercent: 1,
-          isDoubleEntry: true,
-          createdAt: entry.createdAt,
-        });
-      }
-    }
-
-    return Array.from(reportMap.values()).sort(
-      (a, b) => Number(a.formNo) - Number(b.formNo)
-    );
-  }, [finalReports, entries, doubleEntryRowIds]);
+        // ✅ if backend did not save isDoubleEntry,
+        // still detect it only among admin-published reports
+        isDoubleEntry:
+          r.isDoubleEntry === true || doubleEntryFormSet.has(formNo),
+      };
+    })
+    .sort((a, b) => Number(a.formNo) - Number(b.formNo));
+}, [finalReports, doubleEntryFormSet]);
 
   if (goalLoading) return <div className="myworkk">Loading...</div>;
 
@@ -870,11 +903,11 @@ export default function ResultComp() {
         </div>
       </div>
 
-      <FinalReports
-        title="Your Reports"
-        finalReports={adjustedFinalReports}
-        loading={finalLoading || entriesLoading}
-      />
+    <FinalReports
+  title="Your Reports"
+  finalReports={publishedFinalReports}
+  loading={finalLoading || entriesLoading}
+/>
     </div>
   );
 }
