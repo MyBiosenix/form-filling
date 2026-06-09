@@ -63,25 +63,42 @@ function ReportComp() {
   const [reportDeclared, setReportDeclared] = useState(false);
   const [declaring, setDeclaring] = useState(false);
 
-  const excelRef = useRef(null);
-  // Add this ref at the top with other refs
+  const [excelLoading, setExcelLoading] = useState(true);
+  const [entriesLoading, setEntriesLoading] = useState(true);
+  const [finalLoading, setFinalLoading] = useState(true);
+
+const excelRef = useRef(null);
 const comparisonRef = useRef(null);
+const pendingSummaryFocusRef = useRef(null);
 
 // Add this handler after handleComparisonRowClick
 const handleSummaryRowClick = (formNo) => {
-  // Find the comparisonRow matching this formNo
-  const matchedRow = comparisonRows.find((r) => r.formNo === formNo);
-  if (!matchedRow) return;
+  const comparisonIndex = comparisonRows.findIndex(
+    (r) => String(r.formNo) === String(formNo)
+  );
 
-  // 1. Focus Excel table row
-  const rid = Number(matchedRow.excelRowId);
-  if (Number.isFinite(rid) && rid > 0) {
-    setActiveExcelRowId(rid);
-    excelRef.current?.focusRow(rid);
-  }
+  if (comparisonIndex === -1) return;
 
-  // 2. Scroll comparison table to that row
-  comparisonRef.current?.scrollToFormNo(formNo);
+  const matchedRow = comparisonRows[comparisonIndex];
+
+  const excelRowId = Number(matchedRow.excelRowId);
+
+  if (!Number.isFinite(excelRowId) || excelRowId <= 0) return;
+
+  const targetComparisonPage =
+    Math.floor(comparisonIndex / rowsPerPage) + 1;
+
+  const targetExcelPage =
+    Math.floor((excelRowId - 1) / rowsPerPage) + 1;
+
+  pendingSummaryFocusRef.current = {
+    formNo: matchedRow.formNo,
+    excelRowId,
+  };
+
+  setActiveExcelRowId(excelRowId);
+  setComparisonPage(targetComparisonPage);
+  setExcelPage(targetExcelPage);
 };
   const [activeExcelRowId, setActiveExcelRowId] = useState(null);
 
@@ -108,70 +125,103 @@ const handleSummaryRowClick = (formNo) => {
     setReportDeclared(!!user?.reportDeclared);
   }, [user?.reportDeclared]);
 
-  useEffect(() => {
-    const loadExcel = async () => {
-      try {
-        const res = await fetch("/DMSPro V 5.1 - 6K.xlsx");
-        const buffer = await res.arrayBuffer();
+useEffect(() => {
+  let mounted = true;
 
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const loadExcel = async () => {
+    try {
+      setExcelLoading(true);
 
-        setData(jsonData);
-        if (jsonData.length) setHeaders(Object.keys(jsonData[0]));
-      } catch (err) {
-        console.error("Excel load error", err);
+      if (cachedExcelData && cachedExcelHeaders) {
+        if (!mounted) return;
+
+        setData(cachedExcelData);
+        setHeaders(cachedExcelHeaders);
+        return;
       }
-    };
-    loadExcel();
-  }, []);
+
+      const res = await fetch("/DMSPro V 5.1 - 6K.xlsx");
+      const buffer = await res.arrayBuffer();
+
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      const excelHeaders = jsonData.length ? Object.keys(jsonData[0]) : [];
+
+      cachedExcelData = jsonData;
+      cachedExcelHeaders = excelHeaders;
+
+      if (!mounted) return;
+
+      setData(jsonData);
+      setHeaders(excelHeaders);
+    } catch (err) {
+      console.error("Excel load error", err);
+    } finally {
+      if (mounted) setExcelLoading(false);
+    }
+  };
+
+  loadExcel();
+
+  return () => {
+    mounted = false;
+  };
+}, []);
 
   useEffect(() => {
     if (headers.length) setHeaderss(headers);
   }, [headers]);
 
-  useEffect(() => {
-    const fetchEntries = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(
-          `https://api.freelancing-projects.com/api/admin/${userId}/get-reports`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const list = Array.isArray(res.data) ? res.data : [];
-        list.sort((a, b) => a.formNo - b.formNo);
-
-        setEntries(list);
-      } catch (err) {
-        console.log(err);
-        alert("Failed to load responses");
-      }
-    };
-
-    if (userId) fetchEntries();
-  }, [userId]);
-
-  const fetchFinalReports = async () => {
+ useEffect(() => {
+  const fetchEntries = async () => {
     try {
-      const token = localStorage.getItem("token");
+      setEntriesLoading(true);
 
+      const token = localStorage.getItem("token");
       const res = await axios.get(
-        `https://api.freelancing-projects.com/api/admin/${userId}/get-finalreports`,
+        `https://api.freelancing-projects.com/api/admin/${userId}/get-reports`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const list = Array.isArray(res.data) ? res.data : [];
-      setFinalReports(list);
+      list.sort((a, b) => a.formNo - b.formNo);
 
-      const map = {};
-      list.forEach((r) => (map[r.formNo] = true));
-      setVisibleMap(map);
+      setEntries(list);
     } catch (err) {
-      console.log("Failed to load final reports", err);
+      console.log(err);
+      alert("Failed to load responses");
+    } finally {
+      setEntriesLoading(false);
     }
   };
+
+  if (userId) fetchEntries();
+}, [userId]);
+
+  const fetchFinalReports = async () => {
+  try {
+    setFinalLoading(true);
+
+    const token = localStorage.getItem("token");
+
+    const res = await axios.get(
+      `https://api.freelancing-projects.com/api/admin/${userId}/get-finalreports`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const list = Array.isArray(res.data) ? res.data : [];
+    setFinalReports(list);
+
+    const map = {};
+    list.forEach((r) => (map[r.formNo] = true));
+    setVisibleMap(map);
+  } catch (err) {
+    console.log("Failed to load final reports", err);
+  } finally {
+    setFinalLoading(false);
+  }
+};
 
   useEffect(() => {
     if (userId) fetchFinalReports();
@@ -432,8 +482,68 @@ const summaryRows = useMemo(() => {
     }
   };
 
+  const [excelPage, setExcelPage] = useState(1);
+const [comparisonPage, setComparisonPage] = useState(1);
+
+const rowsPerPage = 50;
+
+const visibleExcelData = useMemo(() => {
+  const start = (excelPage - 1) * rowsPerPage;
+  return displayData.slice(start, start + rowsPerPage);
+}, [displayData, excelPage]);
+
+const visibleComparisonRows = useMemo(() => {
+  const start = (comparisonPage - 1) * rowsPerPage;
+  return comparisonRows.slice(start, start + rowsPerPage);
+}, [comparisonRows, comparisonPage]);
+
+const excelStartIndex = (excelPage - 1) * rowsPerPage;
+
+useEffect(() => {
+  const pending = pendingSummaryFocusRef.current;
+
+  if (!pending) return;
+
+  const existsInComparisonPage = visibleComparisonRows.some(
+    (row) => String(row.formNo) === String(pending.formNo)
+  );
+
+  const existsInExcelPage =
+    pending.excelRowId > excelStartIndex &&
+    pending.excelRowId <= excelStartIndex + rowsPerPage;
+
+  if (!existsInComparisonPage || !existsInExcelPage) return;
+
+  const timer = setTimeout(() => {
+    setActiveExcelRowId(pending.excelRowId);
+
+    excelRef.current?.focusRow(pending.excelRowId);
+    comparisonRef.current?.scrollToFormNo(pending.formNo);
+
+    pendingSummaryFocusRef.current = null;
+  }, 80);
+
+  return () => clearTimeout(timer);
+}, [
+  excelPage,
+  comparisonPage,
+  visibleComparisonRows,
+  excelStartIndex,
+  rowsPerPage,
+]);
+
+const pageLoading = excelLoading || entriesLoading || finalLoading;
+
+let cachedExcelData = null;
+let cachedExcelHeaders = null;
+
   return (
     <div className="myworkk">
+      {pageLoading && (
+  <div className="reportLoadingBox">
+    Loading report data, please wait...
+  </div>
+)}
       <div className="topRow">
         <div className="wrk1">
           <div className="tble1">
@@ -449,7 +559,41 @@ const summaryRows = useMemo(() => {
               ) : null}
             </p>
 
-            <ExcelTable ref={excelRef} data={displayData} headers={headers} />
+            <ExcelTable
+  ref={excelRef}
+  data={visibleExcelData}
+  headers={headers}
+  startIndex={excelStartIndex}
+/>
+              <div className="reportPager">
+            <button
+              type="button"
+              className="reportPagerBtn reportPagerBtnPrev"
+              disabled={excelPage === 1}
+              onClick={() => setExcelPage((p) => Math.max(1, p - 1))}
+            >
+              <span className="reportPagerIcon">←</span>
+              <span>Previous</span>
+            </button>
+
+          <div className="reportPagerCenter">
+            <span className="reportPagerText">Page</span>
+            <strong>{excelPage}</strong>
+            <span className="reportPagerText">
+              / {Math.ceil(displayData.length / rowsPerPage) || 1}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="reportPagerBtn reportPagerBtnNext"
+            disabled={excelPage * rowsPerPage >= displayData.length}
+            onClick={() => setExcelPage((p) => p + 1)}
+          >
+            <span>Next</span>
+            <span className="reportPagerIcon">→</span>
+          </button>
+        </div>
           </div>
         </div>
 
@@ -458,7 +602,7 @@ const summaryRows = useMemo(() => {
 
           <ComparisonTable
             ref={comparisonRef}       
-            comparisonRows={comparisonRows}
+            comparisonRows={visibleComparisonRows}
             headerss={headerss}
             th={th}
             td={td}
@@ -468,6 +612,36 @@ const summaryRows = useMemo(() => {
             activeRowId={activeExcelRowId}  
             doubleEntryRowIds={doubleEntryRowIds}
           />
+
+              <div className="reportPager">
+  <button
+    type="button"
+    className="reportPagerBtn reportPagerBtnPrev"
+    disabled={comparisonPage === 1}
+    onClick={() => setComparisonPage((p) => Math.max(1, p - 1))}
+  >
+    <span className="reportPagerIcon">←</span>
+    <span>Previous</span>
+  </button>
+
+  <div className="reportPagerCenter">
+    <span className="reportPagerText">Page</span>
+    <strong>{comparisonPage}</strong>
+    <span className="reportPagerText">
+      / {Math.ceil(comparisonRows.length / rowsPerPage) || 1}
+    </span>
+  </div>
+
+  <button
+    type="button"
+    className="reportPagerBtn reportPagerBtnNext"
+    disabled={comparisonPage * rowsPerPage >= comparisonRows.length}
+    onClick={() => setComparisonPage((p) => p + 1)}
+  >
+    <span>Next</span>
+    <span className="reportPagerIcon">→</span>
+  </button>
+</div>
 
         <div style={{ marginTop: 10, color: "#222", fontSize: 13 }}>
   <div>

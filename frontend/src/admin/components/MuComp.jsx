@@ -143,29 +143,41 @@ function MuComp() {
     }
   };
 
-  const handleMarkNotInSequence = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/mark-not-in-sequence`, {}, {
+ const handleMarkNotInSequence = async (id, showTable = false) => {
+  try {
+    await axios.put(
+      `https://api.freelancing-projects.com/api/admin/${id}/mark-not-in-sequence`,
+      { showTable },
+      {
         headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
+      }
+    );
 
-  const handleUnmarkNotInSequence = async (id) => {
-    try {
-      await axios.put(`https://api.freelancing-projects.com/api/admin/${id}/unmark-not-in-sequence`, {}, {
+    setOpenActionDropdown(null);
+    await getUsers();
+  } catch (err) {
+    console.error("markNotInSequence error:", err);
+    alert(err.response?.data?.message || err.message);
+  }
+};
+
+const handleUnmarkNotInSequence = async (id) => {
+  try {
+    await axios.put(
+      `https://api.freelancing-projects.com/api/admin/${id}/unmark-not-in-sequence`,
+      {},
+      {
         headers: { Authorization: `Bearer ${token}` },
-      });
-      setOpenActionDropdown(null);
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
+      }
+    );
+
+    setOpenActionDropdown(null);
+    await getUsers();
+  } catch (err) {
+    console.error("unmarkNotInSequence error:", err);
+    alert(err.response?.data?.message || err.message);
+  }
+};
 
   useEffect(() => {
     getUsers();
@@ -383,11 +395,12 @@ const sortedUsers = useMemo(() => {
                             Software Used
                           </span>
                         )}
-                        {user.notInSequence && (
-                          <span style={{ color: "#d97706", fontWeight: "bold", fontSize: 12 }}>
-                            Not In Sequence
-                          </span>
-                        )}
+                       {user.notInSequence && (
+                      <span style={{ color: "#d97706", fontWeight: "bold", fontSize: 12 }}>
+                        Not In Sequence{" "}
+                        {user.showNotInSequenceTable ? "(Table)" : "(Message)"}
+                      </span>
+                    )}
                         {user.isComplete !== false && !user.softwareUsed && !user.notInSequence && (
                           <span style={{ color: "#065f46", fontWeight: "bold", fontSize: 12 }}>
                             Complete
@@ -503,21 +516,78 @@ const sortedUsers = useMemo(() => {
                             )}
 
                             {/* Not In Sequence */}
-                            {user.notInSequence ? (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleUnmarkNotInSequence(user._id)}
-                              >
-                                🔓 Unmark Not In Sequence
-                              </div>
-                            ) : (
-                              <div
-                                style={dropItemStyle}
-                                onClick={() => handleMarkNotInSequence(user._id)}
-                              >
-                                🔀 Mark Not In Sequence
-                              </div>
-                            )}
+{user.notInSequence ? (
+  <>
+    <div
+      style={{
+        ...dropItemStyle,
+        color: user.showNotInSequenceTable ? "#2563eb" : "#d97706",
+        fontWeight: 700,
+        cursor: "default",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      Current:{" "}
+      {user.showNotInSequenceTable
+        ? "Showing Table"
+        : "Message Only"}
+    </div>
+
+    <div
+      style={dropItemStyle}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleMarkNotInSequence(user._id, false);
+      }}
+    >
+      📝 Show Message Only
+    </div>
+
+    <div
+      style={dropItemStyle}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleMarkNotInSequence(user._id, true);
+      }}
+    >
+      📋 Show Form Number Table
+    </div>
+
+    <div
+      style={dropItemStyle}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleUnmarkNotInSequence(user._id);
+      }}
+    >
+      🔓 Unmark Not In Sequence
+    </div>
+  </>
+) : (
+  <>
+    <div
+      style={dropItemStyle}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleMarkNotInSequence(user._id, false);
+      }}
+    >
+      🔀 Mark Not In Sequence - Message Only
+    </div>
+
+    <div
+      style={dropItemStyle}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleMarkNotInSequence(user._id, true);
+      }}
+    >
+      📋 Mark Not In Sequence - Show Table
+    </div>
+  </>
+)}
+                           
+                            
 
                             <div
                               style={{ ...dropItemStyle, color: "#9ca3af", fontSize: 12, borderBottom: "none" }}

@@ -47,49 +47,86 @@ export default function MistakeSummaryPanel({
     return { totalMistakes, totalMistakePercent: totalMistakes };
   }, [finalReports]);
 
-  const handleEditCount = async (row) => {
-    if (!visibleMap[row.formNo]) {
-      alert("Please enable 'Set Visible' first, then you can edit the count.");
-      return;
+ const getDefaultRemark = (row, saved) => {
+  const isDouble =
+    row.excelRowId != null
+      ? doubleEntryRowIds?.has(Number(row.excelRowId))
+      : false;
+
+  if (saved?.errorType) return saved.errorType;
+  if (isDouble) return "Double Entry";
+
+  return "Major Mismatch";
+};
+
+const handleEditCount = async (row) => {
+  if (!visibleMap[row.formNo]) {
+    alert("Please enable 'Set Visible' first, then you can edit the count and remark.");
+    return;
+  }
+
+  const saved = finalMap.get(row.formNo);
+  const currentCount = saved?.mistakes ?? row.mistakes;
+  const currentRemark = getDefaultRemark(row, saved);
+
+  const val = window.prompt(
+    `Enter mistakes count to publish for Form ${row.formNo}\n(Max: ${row.mistakes})`,
+    String(currentCount)
+  );
+
+  if (val === null) return;
+
+  const count = Number(val);
+
+  if (!Number.isFinite(count) || count < 0) {
+    alert("Please enter a valid number (0 or more).");
+    return;
+  }
+
+  if (count > Number(row.mistakes)) {
+    alert(`You cannot set more than actual mistakes (${row.mistakes}).`);
+    return;
+  }
+
+  const remark = window.prompt(
+    `Enter remark for Form ${row.formNo}`,
+    String(currentRemark)
+  );
+
+  if (remark === null) return;
+
+  const cleanRemark = String(remark).trim();
+
+  if (!cleanRemark) {
+    alert("Remark cannot be empty.");
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("token");
+
+ const res = await axios.put(
+  `https://api.freelancing-projects.com/api/admin/${userId}/update-count`,
+  {
+    formNo: row.formNo,
+    mistakes: count,
+    errorType: cleanRemark,
+  },
+  {
+    headers: { Authorization: `Bearer ${token}` },
+  }
+);
+
+console.log("UPDATED COUNT/REMARK RESPONSE:", res.data);
+
+    if (typeof onUpdatedFinalReports === "function") {
+      onUpdatedFinalReports();
     }
-
-    const saved = finalMap.get(row.formNo);
-    const current = saved?.mistakes ?? row.mistakes;
-
-    const val = window.prompt(
-      `Enter mistakes count to publish for Form ${row.formNo}\n(Max: ${row.mistakes})`,
-      String(current)
-    );
-
-    if (val === null) return;
-
-    const count = Number(val);
-
-    if (!Number.isFinite(count) || count < 0) {
-      alert("Please enter a valid number (0 or more).");
-      return;
-    }
-
-    if (count > Number(row.mistakes)) {
-      alert(`You cannot set more than actual mistakes (${row.mistakes}).`);
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("token");
-      await axios.put(
-        `https://api.freelancing-projects.com/api/admin/${userId}/update-count`,
-        { formNo: row.formNo, mistakes: count },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (typeof onUpdatedFinalReports === "function") {
-        onUpdatedFinalReports();
-      }
-    } catch (err) {
-      console.log(err);
-      alert(err?.response?.data?.message || "Failed to update count");
-    }
-  };
+  } catch (err) {
+    console.log(err);
+    alert(err?.response?.data?.message || "Failed to update count and remark");
+  }
+};
 
   const allTotals = useMemo(() => {
     const totalMistakes = summaryRows.reduce((sum, r) => {
@@ -200,7 +237,7 @@ export default function MistakeSummaryPanel({
                           title={
                             !visibleMap[r.formNo]
                               ? "Enable Set Visible to edit"
-                              : "Edit published mistake count"
+                              : "Edit published mistake count and remark"
                           }
                         >
                           Edit
@@ -260,20 +297,19 @@ export default function MistakeSummaryPanel({
                         <td className="msStrong">{r.mistakes}</td>
                         <td className="msStrong">{r.mistakePercent}%</td>
                       
-                          <td className="finalStrong">
-                        {r.isDouble || doubleFormNoSet.has(String(r.formNo))
-                          ? "Double Entry"
-                          : "Major Mismatch"}
-                      </td>
-                                            
-                    
-                      </tr>
+                        <td className="finalStrong">
+                            {r.errorType ||
+                              (r.isDouble || doubleFormNoSet.has(String(r.formNo))
+                                ? "Double Entry"
+                                : "Major Mismatch")}
+                          </td>
+                    </tr>
                     ))}
                     <tr className="msTotalRow">
                       <td className="msStrong">TOTAL</td>
                       <td className="msStrong">{selectedTotals.totalMistakes}</td>
                       <td className="msStrong">{selectedTotals.totalMistakePercent}%</td>
-                      <td />
+                      <td/>
                     </tr>
                   </>
                 )}

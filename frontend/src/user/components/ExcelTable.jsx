@@ -1,7 +1,14 @@
-import React, { memo, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import React, {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 
 const ExcelTable = memo(
-  forwardRef(function ExcelTable({ data, headers }, ref) {
+  forwardRef(function ExcelTable({ data, headers, startIndex = 0 }, ref) {
     const tableRef = useRef(null);
     const selectedCellRef = useRef(null);
     const selectedRowRef = useRef(null);
@@ -11,7 +18,9 @@ const ExcelTable = memo(
     const selectTextInCell = (cell) => {
       const selection = window.getSelection();
       if (!selection || !cell) return;
+
       selection.removeAllRanges();
+
       const range = document.createRange();
       range.selectNodeContents(cell);
       selection.addRange(range);
@@ -19,50 +28,68 @@ const ExcelTable = memo(
 
     const selectCell = (cell) => {
       if (!cell) return;
-      if (selectedCellRef.current) selectedCellRef.current.classList.remove("selected");
+
+      if (selectedCellRef.current) {
+        selectedCellRef.current.classList.remove("selected");
+      }
+
       selectedCellRef.current = cell;
       cell.classList.add("selected");
       tableRef.current?.focus();
     };
 
     const highlightRow = (rowEl) => {
-      if (selectedRowRef.current) selectedRowRef.current.classList.remove("row-active");
+      if (selectedRowRef.current) {
+        selectedRowRef.current.classList.remove("row-active");
+      }
+
       selectedRowRef.current = rowEl;
       rowEl?.classList.add("row-active");
     };
 
-    // ✅ Expose API to parent
     useImperativeHandle(ref, () => ({
       focusRow: (rowId1Based) => {
         const table = tableRef.current;
         const tbody = table?.querySelector("tbody");
+
         if (!tbody) return;
 
-        const r = Number(rowId1Based) - 1;
-        const rowEl = tbody.rows[r];
+        const localIndex = Number(rowId1Based) - 1 - Number(startIndex);
+
+        if (!Number.isFinite(localIndex) || localIndex < 0) return;
+
+        const rowEl = tbody.rows[localIndex];
+
         if (!rowEl) return;
 
         highlightRow(rowEl);
 
-        // pick a nice cell to select (1 = first real data col, fallback to 0)
         const cell = rowEl.cells[1] || rowEl.cells[0];
+
         selectCell(cell);
         selectTextInCell(cell);
 
-        rowEl.scrollIntoView({ block: "center", inline: "nearest" });
+        rowEl.scrollIntoView({
+          block: "center",
+          inline: "nearest",
+        });
       },
     }));
 
     useEffect(() => {
       const table = tableRef.current;
+
       if (!table) return;
 
       const tbody = table.querySelector("tbody");
+
       if (!tbody) return;
 
       const onClick = (e) => {
         const cell = e.target.closest("td");
+
         if (!cell) return;
+
         highlightRow(cell.parentElement);
         selectCell(cell);
         selectTextInCell(cell);
@@ -70,7 +97,9 @@ const ExcelTable = memo(
 
       const onContextMenu = (e) => {
         const cell = e.target.closest("td");
+
         if (!cell) return;
+
         highlightRow(cell.parentElement);
         selectCell(cell);
         selectTextInCell(cell);
@@ -78,7 +107,9 @@ const ExcelTable = memo(
 
       const getCellByRC = (r, c) => {
         const row = tbody.rows[r];
+
         if (!row) return null;
+
         return row.cells[c] || null;
       };
 
@@ -87,7 +118,9 @@ const ExcelTable = memo(
 
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
           if (!cell) return;
+
           const text = cell.innerText ?? "";
+
           try {
             await navigator.clipboard.writeText(text);
           } catch {
@@ -98,10 +131,12 @@ const ExcelTable = memo(
             document.execCommand("copy");
             document.body.removeChild(ta);
           }
+
           return;
         }
 
         const arrowKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+
         if (!arrowKeys.includes(e.key)) return;
         if (!cell) return;
 
@@ -110,18 +145,25 @@ const ExcelTable = memo(
         const r = cell.parentElement.rowIndex - 1;
         const c = cell.cellIndex;
 
-        let nr = r, nc = c;
+        let nr = r;
+        let nc = c;
+
         if (e.key === "ArrowUp") nr = Math.max(r - 1, 0);
         if (e.key === "ArrowDown") nr = Math.min(r + 1, data.length - 1);
         if (e.key === "ArrowLeft") nc = Math.max(c - 1, 0);
         if (e.key === "ArrowRight") nc = Math.min(c + 1, allCols.length - 1);
 
         const next = getCellByRC(nr, nc);
+
         if (next) {
           highlightRow(next.parentElement);
           selectCell(next);
           selectTextInCell(next);
-          next.scrollIntoView({ block: "nearest", inline: "nearest" });
+
+          next.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+          });
         }
       };
 
@@ -130,6 +172,7 @@ const ExcelTable = memo(
       table.addEventListener("keydown", onKeyDown);
 
       const first = tbody.querySelector("td");
+
       if (first) {
         highlightRow(first.parentElement);
         selectCell(first);
@@ -151,6 +194,7 @@ const ExcelTable = memo(
           <thead>
             <tr>
               <th>Sr No</th>
+
               {headers.map((h) => (
                 <th key={h}>{h}</th>
               ))}
@@ -159,8 +203,9 @@ const ExcelTable = memo(
 
           <tbody>
             {data.map((row, index) => (
-              <tr key={index}>
-                <td className="cell">{index + 1}</td>
+              <tr key={`${startIndex}-${index}`}>
+                <td className="cell">{startIndex + index + 1}</td>
+
                 {headers.map((h) => (
                   <td key={h} className="cell">
                     {row[h]}

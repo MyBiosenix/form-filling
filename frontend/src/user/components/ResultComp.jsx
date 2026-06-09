@@ -47,6 +47,60 @@ const norm = (v) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
+const getEntryTime = (entry) => {
+  const createdTime = new Date(entry?.createdAt).getTime();
+
+  if (!Number.isNaN(createdTime) && createdTime > 0) {
+    return createdTime;
+  }
+
+  // ✅ fallback: MongoDB _id timestamp
+  if (entry?._id && String(entry._id).length >= 8) {
+    const idTime = parseInt(String(entry._id).substring(0, 8), 16) * 1000;
+    if (!Number.isNaN(idTime)) return idTime;
+  }
+
+  return 0;
+};
+
+const findSequenceIssues = (entries = []) => {
+  const submitted = entries
+    .filter(
+      (entry) =>
+        Number.isFinite(Number(entry.formNo)) &&
+        Number.isFinite(Number(entry.excelRowId))
+    )
+    .map((entry) => ({
+      ...entry,
+      formNoNumber: Number(entry.formNo),
+      excelRowIdNumber: Number(entry.excelRowId),
+    }))
+    .sort((a, b) => a.formNoNumber - b.formNoNumber);
+
+  if (!submitted.length) return [];
+
+  const issues = [];
+
+  for (let i = 0; i < submitted.length; i++) {
+    const expectedExcelRowId = i + 1;
+    const currentExcelRowId = submitted[i].excelRowIdNumber;
+
+    if (currentExcelRowId !== expectedExcelRowId) {
+      issues.push({
+        formNo: submitted[i].formNoNumber,
+        expectedExcelRowId,
+        actualExcelRowId: currentExcelRowId,
+        previousFormNo: i > 0 ? submitted[i - 1].formNoNumber : null,
+        previousExcelRowId: i > 0 ? submitted[i - 1].excelRowIdNumber : null,
+      });
+    }
+  }
+
+  return issues;
+};
+
+
+
 /* ------------------- download report ------------------- */
 function downloadFinalReportsXlsx(finalReports) {
   if (!finalReports || finalReports.length === 0) return;
@@ -170,6 +224,8 @@ function downloadFinalReportsXlsx(finalReports) {
   XLSX.writeFile(wb, fileName);
 }
 
+
+
 /* ------------------- MyResponses ------------------- */
 function MyResponses({
   title = "My Responses",
@@ -206,6 +262,7 @@ function MyResponses({
     },
     [excelByRowId]
   );
+
 
   return (
     <div className="myres">
@@ -488,9 +545,9 @@ function StatusCard({ title, message, tone = "neutral" }) {
       >
         <h2 style={{ margin: 0, color: styles.heading }}>{title}</h2>
 
-        <p style={{ marginTop: 10, color: "#374151", lineHeight: 1.6 }}>
-          {message}
-        </p>
+       <div style={{ marginTop: 10, color: "#374151", lineHeight: 1.6 }}>
+  {message}
+</div>
 
         {tone === "warning" && (
           <p style={{ marginTop: 8, color: "#374151" }}>
@@ -502,6 +559,21 @@ function StatusCard({ title, message, tone = "neutral" }) {
   );
 }
 
+const sequenceThStyle = {
+  padding: "10px 12px",
+  textAlign: "left",
+  borderBottom: "1px solid #fed7aa",
+  color: "#7c2d12",
+  fontWeight: 800,
+  whiteSpace: "nowrap",
+};
+
+const sequenceTdStyle = {
+  padding: "10px 12px",
+  borderBottom: "1px solid #f3f4f6",
+  color: "#374151",
+  whiteSpace: "nowrap",
+};
 /* ------------------- ResultComp ------------------- */
 export default function ResultComp() {
   const [data, setData] = useState([]);
@@ -514,6 +586,7 @@ export default function ResultComp() {
   const [isComplete, setIsComplete] = useState(true);
   const [softwareUsed, setSoftwareUsed] = useState(false);
   const [notInSequence, setNotInSequence] = useState(false);
+  const [showNotInSequenceTable, setShowNotInSequenceTable] = useState(false);
 
   const [finalReports, setFinalReports] = useState([]);
   const [finalLoading, setFinalLoading] = useState(true);
@@ -521,6 +594,7 @@ export default function ResultComp() {
 
   const [entries, setEntries] = useState([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
+  const [sequenceIssues, setSequenceIssues] = useState([]);
 
   const userId = localStorage.getItem("userId");
 
@@ -555,6 +629,7 @@ export default function ResultComp() {
         setIsComplete(res.data?.isComplete === false ? false : true);
         setSoftwareUsed(!!res.data?.softwareUsed);
         setNotInSequence(!!res.data?.notInSequence);
+        setShowNotInSequenceTable(!!res.data?.showNotInSequenceTable);
       } catch (err) {
         console.log("Failed to load dash stats", err);
 
@@ -563,6 +638,7 @@ export default function ResultComp() {
         setIsComplete(true);
         setSoftwareUsed(false);
         setNotInSequence(false);
+        setShowNotInSequenceTable(false);
       } finally {
         setGoalLoading(false);
       }
@@ -574,33 +650,50 @@ export default function ResultComp() {
   const canShowReport =
     reportDeclared && isComplete && !softwareUsed && !notInSequence;
 
-  const fetchEntries = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
+ const fetchEntries = useCallback(async () => {
+  try {
+    const token = localStorage.getItem("token");
 
-      const res = await axios.get(
-        "https://api.freelancing-projects.com/api/user/entries",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      let list = Array.isArray(res.data) ? res.data : [];
-
-      list.sort((a, b) => Number(a.formNo) - Number(b.formNo));
-
-      if (Number(goal) > 0) {
-        list = list.slice(0, Number(goal));
+    const res = await axios.get(
+      "https://api.freelancing-projects.com/api/user/entries",
+      {
+        headers: { Authorization: `Bearer ${token}` },
       }
+    );
 
-      setEntries(list);
-    } catch (err) {
-      console.log("Failed to load user entries", err);
-      setEntries([]);
-    } finally {
-      setEntriesLoading(false);
+    let list = Array.isArray(res.data) ? res.data : [];
+
+    console.log(
+      "ALL ENTRIES FOR SEQUENCE:",
+      list.map((e) => ({
+        formNo: e.formNo,
+        excelRowId: e.excelRowId,
+        createdAt: e.createdAt,
+        id: e._id,
+      }))
+    );
+
+    const issues = findSequenceIssues(list);
+
+    console.log("ALL SEQUENCE ISSUES:", issues);
+
+    setSequenceIssues(issues);
+
+    list.sort((a, b) => Number(a.formNo) - Number(b.formNo));
+
+    if (Number(goal) > 0) {
+      list = list.slice(0, Number(goal));
     }
-  }, [goal]);
+
+    setEntries(list);
+  } catch (err) {
+    console.log("Failed to load user entries", err);
+    setEntries([]);
+    setSequenceIssues([]);
+  } finally {
+    setEntriesLoading(false);
+  }
+}, [goal]);
 
   const fetchFinalReports = useCallback(async () => {
     try {
@@ -636,16 +729,17 @@ export default function ResultComp() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!canShowReport) {
-      setEntries([]);
-      setEntriesLoading(false);
-      return;
-    }
+useEffect(() => {
+  if (!reportDeclared) {
+    setEntries([]);
+    setSequenceIssues([]);
+    setEntriesLoading(false);
+    return;
+  }
 
-    setEntriesLoading(true);
-    fetchEntries();
-  }, [fetchEntries, canShowReport]);
+  setEntriesLoading(true);
+  fetchEntries();
+}, [fetchEntries, reportDeclared]);
 
   useEffect(() => {
     if (!canShowReport) {
@@ -854,15 +948,129 @@ const publishedFinalReports = useMemo(() => {
     );
   }
 
-  if (notInSequence) {
+if (notInSequence) {
+  const simpleSequenceMessage = (
+    <div>
+      <p style={{ margin: "0 0 10px" }}>
+        Your report is currently unavailable because your work was not submitted
+        in the correct sequence.
+      </p>
+
+      <p style={{ margin: "0 0 10px" }}>
+        Please contact your administrator to resolve this issue.
+      </p>
+    </div>
+  );
+
+  // ✅ Admin selected: Message Only
+  if (!showNotInSequenceTable) {
     return (
       <StatusCard
         tone="warning"
         title="Work Not Submitted In Sequence"
-        message="Your report is currently unavailable because your work was not submitted in the correct sequence. Please contact your administrator to resolve this issue."
+        message={simpleSequenceMessage}
       />
     );
   }
+
+  // ✅ Admin selected: Show Table
+  if (entriesLoading) {
+    return (
+      <StatusCard
+        tone="warning"
+        title="Work Not Submitted In Sequence"
+        message="Checking sequence details..."
+      />
+    );
+  }
+
+  const tableRows = sequenceIssues.length
+    ? sequenceIssues
+    : entries.map((entry, index) => ({
+        formNo: Number(entry.formNo),
+        expectedExcelRowId: index + 1,
+        actualExcelRowId: Number(entry.excelRowId),
+      }));
+
+  const sequenceMessage = (
+    <div>
+      <p style={{ margin: "0 0 12px" }}>
+        Your report is currently unavailable because your work was not submitted
+        in the correct sequence.
+      </p>
+
+      <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#7c2d12" }}>
+        Not in sequence form numbers:
+      </p>
+
+      <div
+        style={{
+          overflowX: "auto",
+          maxHeight: 350,
+          overflowY: "auto",
+          border: "1px solid #fed7aa",
+          borderRadius: 8,
+          background: "#fff",
+        }}
+      >
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 14,
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#ffedd5" }}>
+              <th style={sequenceThStyle}>Form No</th>
+              <th style={sequenceThStyle}>Expected Excel Row ID</th>
+              <th style={sequenceThStyle}>Submitted Excel Row ID</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {tableRows.length > 0 ? (
+              tableRows.map((issue) => (
+                <tr key={`${issue.formNo}-${issue.expectedExcelRowId}-${issue.actualExcelRowId}`}>
+                  <td style={sequenceTdStyle}>
+                    <strong>{issue.formNo}</strong>
+                  </td>
+                  <td style={sequenceTdStyle}>{issue.expectedExcelRowId}</td>
+                  <td style={sequenceTdStyle}>{issue.actualExcelRowId}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={3}
+                  style={{
+                    ...sequenceTdStyle,
+                    textAlign: "center",
+                    color: "#6b7280",
+                  }}
+                >
+                  No submitted form data found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <p style={{ margin: "12px 0 0" }}>
+        Please contact your administrator to resolve this issue.
+      </p>
+    </div>
+  );
+
+  return (
+    <StatusCard
+      tone="warning"
+      title="Work Not Submitted In Sequence"
+      message={sequenceMessage}
+    />
+  );
+}
 
   if (!isComplete) {
     return (

@@ -71,10 +71,16 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    notInSequence: {
-        type: Boolean,
-        default: false,
-    },
+  notInSequence: {
+  type: Boolean,
+  default: false,
+},
+
+showNotInSequenceTable: {
+  type: Boolean,
+  default: false,
+},
+
 })
 
 userSchema.index({ status: 1 });

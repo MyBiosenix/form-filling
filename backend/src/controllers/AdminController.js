@@ -23,6 +23,7 @@ const userListBaseProjection = {
   isComplete: 1,
   softwareUsed: 1,
   notInSequence: 1,
+  showNotInSequenceTable: 1,
   lastLoginSession: 1,
 };
 
@@ -682,30 +683,60 @@ exports.unmarkSoftwareUsed = async (req, res) => {
 exports.markNotInSequence = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const showTable =
+      req.body.showTable === true ||
+      req.body.showTable === "true" ||
+      req.body.showTable === 1 ||
+      req.body.showTable === "1";
+
     const u = await User.findByIdAndUpdate(
       id,
-      { notInSequence: true },
+      {
+        $set: {
+          notInSequence: true,
+          showNotInSequenceTable: showTable,
+        },
+      },
       { new: true }
-    );
+    ).select("name email notInSequence showNotInSequenceTable");
+
     if (!u) return res.status(404).json({ message: "User not found" });
-    res.status(200).json({ message: "Marked as Not In Sequence", user: u });
+
+    return res.status(200).json({
+      message: showTable
+        ? "Marked as Not In Sequence - Table Visible"
+        : "Marked as Not In Sequence - Message Only",
+      user: u,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
 exports.unmarkNotInSequence = async (req, res) => {
   try {
     const { id } = req.params;
+
     const u = await User.findByIdAndUpdate(
       id,
-      { notInSequence: false },
+      {
+        $set: {
+          notInSequence: false,
+          showNotInSequenceTable: false,
+        },
+      },
       { new: true }
-    );
+    ).select("name email notInSequence showNotInSequenceTable");
+
     if (!u) return res.status(404).json({ message: "User not found" });
-    res.status(200).json({ message: "Not In Sequence unmarked", user: u });
+
+    return res.status(200).json({
+      message: "Not In Sequence unmarked",
+      user: u,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -1178,8 +1209,8 @@ exports.getFinalReports = async(req,res) => {
             return res.status(400).json({ message: "userId missing" });
         }
         const query = FinalReport.find({ userId })
-            .select("_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType createdAt updatedAt")
-            .sort({ formNo: 1 })
+        .select("_id userId formNo mistakes mistakePercent mistakePercentValue totalFields accuracy errorType isSelected createdAt updatedAt")    
+        .sort({ formNo: 1 })
             .lean();
 
         if (pagination) {
@@ -1468,29 +1499,49 @@ exports.deleteReportOverride = async (req, res) => {
 exports.updateReportCount = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { formNo, mistakes } = req.body;
+    const { formNo, mistakes, errorType } = req.body;
+
+    console.log("UPDATE COUNT BODY:", req.body);
 
     if (!userId || formNo === undefined) {
       return res.status(400).json({ message: "userId or formNo missing" });
     }
 
     const count = Number(mistakes);
+
     if (!Number.isFinite(count) || count < 0) {
       return res.status(400).json({ message: "Invalid mistakes count" });
     }
 
-    const existing = await FinalReport.findOne({ userId, formNo, isSelected: true });
+    const existing = await FinalReport.findOne({
+      userId,
+      formNo: Number(formNo),
+      isSelected: true,
+    });
+
     if (!existing) {
-      return res.status(404).json({ message: "Report not selected yet (enable Set Visible first)" });
+      return res.status(404).json({
+        message: "Report not selected yet (enable Set Visible first)",
+      });
     }
 
     existing.mistakes = count;
     existing.mistakePercent = count;
     existing.mistakePercentValue = count;
+
+    existing.errorType =
+      errorType !== undefined && String(errorType).trim()
+        ? String(errorType).trim()
+        : existing.errorType || "Major Mismatch";
+
     await existing.save();
 
-    return res.status(200).json(existing);
+    return res.status(200).json({
+      message: "Count and remark updated successfully",
+      report: existing,
+    });
   } catch (err) {
+    console.error("updateReportCount error:", err);
     return res.status(500).json({ message: err.message });
   }
 };

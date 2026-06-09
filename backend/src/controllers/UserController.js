@@ -20,9 +20,9 @@ const syncUserTotalFormsDone = async (userId) => {
 const buildUserResultPayload = async (userId) => {
   const user = await User.findById(userId)
     .populate("packages", "name forms")
-    .select(
-      "packages totalFormsDone reportDeclared expiry isComplete softwareUsed notInSequence"
-    )
+   .select(
+  "packages totalFormsDone reportDeclared expiry isComplete softwareUsed notInSequence showNotInSequenceTable"
+)
     .lean();
 
   if (!user) {
@@ -36,6 +36,7 @@ const buildUserResultPayload = async (userId) => {
   const isComplete = user.isComplete !== false;
   const softwareUsed = !!user.softwareUsed;
   const notInSequence = !!user.notInSequence;
+  const showNotInSequenceTable = !!user.showNotInSequenceTable;
   const canShowReport =
     reportDeclared && isComplete && !softwareUsed && !notInSequence;
 
@@ -59,6 +60,7 @@ const buildUserResultPayload = async (userId) => {
     isComplete,
     softwareUsed,
     notInSequence,
+    showNotInSequenceTable,
     reports,
   };
 };
@@ -224,7 +226,7 @@ exports.getdashStats = async (req, res) => {
     if (!result) {
       return res.status(404).json({ message: "User not found" });
     }
-
+    
     return res.status(200).json({
       packageName: result.packageName,
       goal: result.goal,
@@ -238,8 +240,12 @@ exports.getdashStats = async (req, res) => {
       isComplete: result.isComplete,
       softwareUsed: result.softwareUsed,
       notInSequence: result.notInSequence,
+      showNotInSequenceTable: result.showNotInSequenceTable,
     });
-  } catch (err) {
+  }
+   
+  catch (err) {
+    
     return res.status(500).json({ message: err.message });
   }
 };
