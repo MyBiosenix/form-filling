@@ -80,6 +80,22 @@ showNotInSequenceTable: {
   type: Boolean,
   default: false,
 },
+isDeleted: {
+  type: Boolean,
+  default: false,
+  index: true,
+},
+
+deletedAt: {
+  type: Date,
+  default: null,
+},
+
+deletedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Admin",
+  default: null,
+},
 
 })
 

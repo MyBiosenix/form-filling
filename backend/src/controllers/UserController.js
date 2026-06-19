@@ -69,22 +69,43 @@ exports.login = async (req, res) => {
   try {
     const { email, password, forceLogin } = req.body;
 
-    const user = await User.findOne({ email })
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    })
       .populate("packages", "name")
       .populate("admin", "name");
 
     if (!user) {
-      return res.status(400).json({ message: "User Does Not Exists" });
+      return res.status(404).json({
+        message: "User does not exist",
+      });
+    }
+
+    // Check Trash status before checking account status
+    if (user.isDeleted === true) {
+      return res.status(403).json({
+        message:
+          "Your account has been moved to Trash. Please contact the admin.",
+      });
     }
 
     if (password !== user.password) {
-      return res.status(400).json({ message: "Incorrect Password" });
+      return res.status(400).json({
+        message: "Incorrect password",
+      });
     }
 
-    if (!user.status) {
-      return res
-        .status(400)
-        .json({ message: "Your Account has been deactivated. Please Contact Admin" });
+    if (user.status === false) {
+      return res.status(403).json({
+        message:
+          "Your account has been deactivated. Please contact the admin.",
+      });
     }
 
     if (user.lastLoginSession && !forceLogin) {
@@ -95,30 +116,38 @@ exports.login = async (req, res) => {
       });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "30d",
-    });
+    const token = jwt.sign(
+      {
+        id: user._id,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "30d",
+      }
+    );
 
     user.lastLoginSession = token;
     await user.save();
 
     return res.status(200).json({
-      message: "Login Succesful",
+      message: "Login successful",
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
-        admin: user.admin?.name,
-        packages: user.packages?.name,
-        price: user?.price,
-        expiry: user?.expiry,
+        admin: user.admin?.name || null,
+        packages: user.packages?.name || null,
+        price: user.price,
+        expiry: user.expiry,
         status: user.status,
       },
     });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err.message || "Login failed",
+    });
   }
 };
 
@@ -253,25 +282,44 @@ exports.getdashStats = async (req, res) => {
 exports.ChangePassword = async (req, res) => {
   try {
     const { id } = req.params;
-    const { password, newpassword } = req.body;
-    const user = await User.findById(id).select("password");
+    const { password, newPassword } = req.body;
+
+    if (!password || !newPassword) {
+      return res.status(400).json({
+        message: "Current password and new password are required",
+      });
+    }
+
+    if (newPassword.length < 5) {
+      return res.status(400).json({
+        message: "New password length should be at least 5",
+      });
+    }
+
+    const user = await User.findById(id);
 
     if (!user) {
-      return res.status(400).json({ message: "User Not Found" });
+      return res.status(400).json({
+        message: "User Does Not Exist",
+      });
     }
 
     if (password !== user.password) {
-      return res
-        .status(400)
-        .json({ message: "Please Enter Correct Previous Password" });
+      return res.status(400).json({
+        message: "Invalid Current Password",
+      });
     }
 
-    user.password = newpassword;
+    user.password = newPassword;
     await user.save();
 
-    return res.status(200).json({ message: "Password Updated Succesfully" });
+    return res.status(200).json({
+      message: "Password Changed Successfully",
+    });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err.message || "Server error",
+    });
   }
 };
 

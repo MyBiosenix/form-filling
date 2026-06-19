@@ -54,6 +54,7 @@ function WorkComp() {
   const [formData, setFormData] = useState({});
 
   const [userIdReady, setUserIdReady] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [goal, setGoal] = useState(0);
   const [goalStatus, setGoalStatus] = useState(0);
@@ -175,30 +176,34 @@ function WorkComp() {
     if (userIdReady) fetchGoalStats();
   }, [userIdReady]);
 
-  useEffect(() => {
-    const loadExcel = async () => {
-      try {
-        const res = await fetch("/DMSPro V 5.1 - 6K.xlsx");
-        const buffer = await res.arrayBuffer();
+useEffect(() => {
+  const loadExcel = async () => {
+    try {
+      setLoading(true);
 
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      const res = await fetch("/DMSPro V 5.1 - 6K.xlsx");
+      const buffer = await res.arrayBuffer();
 
-        setData(jsonData);
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-        if (jsonData.length) {
-          const cols = Object.keys(jsonData[0]);
-          setHeaders(cols);
-          setFormData(Object.fromEntries(cols.map((c) => [c, ""])));
-        }
-      } catch (err) {
-        console.error("Excel load error", err);
+      setData(jsonData);
+
+      if (jsonData.length) {
+        const cols = Object.keys(jsonData[0]);
+        setHeaders(cols);
+        setFormData(Object.fromEntries(cols.map((c) => [c, ""])));
       }
-    };
+    } catch (err) {
+      console.error("Excel load error", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadExcel();
-  }, []);
+  loadExcel();
+}, []);
 
   const shuffledData = useMemo(() => {
     if (!data.length) return [];
@@ -301,6 +306,26 @@ function WorkComp() {
 
   const goalCompleted = goal > 0 && goalStatus >= goal;
   const lockWork = isExpired || goalCompleted;
+  if (loading) {
+  return (
+    <div className="wrk">
+      <div
+        style={{
+          width: "100%",
+          minHeight: "70vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "22px",
+          fontWeight: "700",
+          color: "#4b5563",
+        }}
+      >
+        Loading data, please wait...
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="wrk">

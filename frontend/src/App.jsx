@@ -30,6 +30,7 @@ import SMU from './subadmin/pages/SMU'
 import SMP from './subadmin/pages/SMP'
 import SAU from './subadmin/pages/SAU'
 import SIAU from './subadmin/pages/SIAU'
+import TrashUsers from './admin/components/TrashUsers'
 
 function App() {
   return (
@@ -52,6 +53,8 @@ function App() {
         <Route path='/admin/expiring-soon' element={<Expiring/>}/>
         <Route path='/admin/targets-achieved' element={<TA/>}/>
         <Route path='/admin/manage-user/add-user' element={<AddUser/>}/>
+        <Route path="/admin/trash-users"element={<TrashUsers />}
+/>
         <Route path='/admin/manage-package' element={<MP/>}/>
         <Route path='/admin/manage-package/add-package' element={<AddPackage/>}/>
         <Route path='/admin/active-users' element={<AU/>}/>

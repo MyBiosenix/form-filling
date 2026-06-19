@@ -25,6 +25,12 @@ const userListBaseProjection = {
   notInSequence: 1,
   showNotInSequenceTable: 1,
   lastLoginSession: 1,
+   isDeleted: 1,
+  deletedAt: 1,
+  deletedBy: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  scheduledPermanentDeleteAt: 1,
 };
 
 const buildUserListPipeline = (match = {}, { includeGoalStatus = false, sort = { createdAt: -1 } } = {}) => {
@@ -549,69 +555,247 @@ exports.getPackageName = async(req,res) => {
 
 exports.getUsers = async (req, res) => {
   try {
-    await syncMissingUserTotals();
+    const activeUserFilter = {
+      isDeleted: { $ne: true },
+    };
+
+    await syncMissingUserTotals(activeUserFilter);
 
     const users = await User.aggregate(
-      buildUserListPipeline({}, { includeGoalStatus: true })
+      buildUserListPipeline(activeUserFilter, {
+        includeGoalStatus: true,
+      })
     );
 
     return res.status(200).json(users);
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err.message || "Failed to get users",
+    });
   }
 };
 
-exports.deactivateUser = async(req,res) => {
-    try{
-        const {id} = req.params;
-        await User.findByIdAndUpdate(id,{status:false});
-        res.status(200).json({message:"User Deactivated Succesfully"});
-    }
-    catch(err){
-        res.status(500).json({message:err.message});
-    }
-}
+exports.getTrashUsers = async (req, res) => {
+  try {
+    const trashUsers = await User.aggregate(
+      buildUserListPipeline(
+        {
+          isDeleted: true,
+        },
+        {
+          includeGoalStatus: true,
+          sort: { deletedAt: -1 },
+        }
+      )
+    );
 
-exports.activateUser = async(req,res) => {
-    try{
-        const {id} = req.params;
-        await User.findByIdAndUpdate(id,{status:true});
-        res.status(200).json({message:"User Activated Succesfully"});
-    }
-    catch(err){
-        res.status(500).json({message:err.message});
-    }
-}
+    return res.status(200).json(trashUsers);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to get Trash users",
+    });
+  }
+};
 
-exports.deleteUser = async (req, res) => {
-  const session = await mongoose.startSession();
-
+exports.restoreUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    session.startTransaction();
+    const restoredUser = await User.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: true,
+      },
+      {
+        $set: {
+          isDeleted: false,
+          deletedAt: null,
+          deletedBy: null,
+          scheduledPermanentDeleteAt: null,
+          status: true,
+          lastLoginSession: null,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
+      .select(
+        "_id name email status isDeleted deletedAt scheduledPermanentDeleteAt"
+      )
+      .lean();
 
-    await FormEntry.deleteMany({ userId: id }).session(session);
-
-    await FinalReport.deleteMany({ userId: id }).session(session);
-
-    const deletedUser = await User.findByIdAndDelete(id).session(session);
-    if (!deletedUser) {
-      await session.abortTransaction();
-      return res.status(404).json({ message: "User not found" });
+    if (!restoredUser) {
+      return res.status(404).json({
+        message: "User not found in Trash",
+      });
     }
 
-    await session.commitTransaction();
+    return res.status(200).json({
+      message: "User restored successfully",
+      user: restoredUser,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to restore user",
+    });
+  }
+};
 
-    res.status(200).json({
-      message: "User and all related records deleted successfully",
+exports.permanentlyDeleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({
+      _id: id,
+      isDeleted: true,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found in Trash",
+      });
+    }
+
+    await FormEntry.deleteMany({ userId: id });
+    await FinalReport.deleteMany({ userId: id });
+    await User.deleteOne({ _id: id, isDeleted: true });
+
+    return res.status(200).json({
+      message: "User and all related records permanently deleted",
       userId: id,
     });
   } catch (err) {
-    await session.abortTransaction();
-    res.status(500).json({ message: err.message });
-  } finally {
-    session.endSession();
+    return res.status(500).json({
+      message: err.message || "Failed to permanently delete user",
+    });
+  }
+};
+
+exports.deactivateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          status: false,
+          lastLoginSession: null,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found or user is in Trash",
+      });
+    }
+
+    return res.status(200).json({
+      message: "User Deactivated Successfully",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.activateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          status: true,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found or user is in Trash",
+      });
+    }
+
+    return res.status(200).json({
+      message: "User Activated Successfully",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedAt = new Date();
+
+    const scheduledPermanentDeleteAt = new Date(deletedAt);
+
+    scheduledPermanentDeleteAt.setMonth(
+      scheduledPermanentDeleteAt.getMonth() + 2
+    );
+
+    const user = await User.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt,
+          scheduledPermanentDeleteAt,
+          deletedBy: req.userId || null,
+          status: false,
+          lastLoginSession: null,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
+      .select(
+        "_id name email isDeleted deletedAt scheduledPermanentDeleteAt"
+      )
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found or already moved to Trash",
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        "User moved to Trash successfully and will be permanently deleted after two months",
+      user,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to move user to Trash",
+    });
   }
 };
 
@@ -740,170 +924,198 @@ exports.unmarkNotInSequence = async (req, res) => {
   }
 };
 
-exports.getActiveUsers = async(req,res) => {
-    try{
-        const activeUsers = await User.find({status:true}).select('name email status').lean();
-        res.status(200).json(activeUsers);
-    }
-    catch(err){
-        res.status(500).json({message:err.message});
-    }
-}
+exports.getActiveUsers = async (req, res) => {
+  try {
+    const activeUsers = await User.find({
+      status: true,
+      isDeleted: { $ne: true },
+    })
+      .select("name email status")
+      .lean();
 
-exports.getInActiveUsers = async(req,res) => {
-    try{
-        const InActiveUsers = await User.find({status:false}).select('name email status').lean();
-        res.status(200).json(InActiveUsers);
-    }
-    catch(err){
-        res.status(500).json({message:err.message})
-    }
-}
+    return res.status(200).json(activeUsers);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.getInActiveUsers = async (req, res) => {
+  try {
+    const inactiveUsers = await User.find({
+      status: false,
+      isDeleted: { $ne: true },
+    })
+      .select("name email status")
+      .lean();
+
+    return res.status(200).json(inactiveUsers);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message,
+    });
+  }
+};
 exports.getExpiringSoonUsers = async (req, res) => {
   try {
-    const days = Number(req.query.days || 4);
+    const days = Math.max(Number(req.query.days || 4), 1);
 
     const now = new Date();
-    const till = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const till = new Date(
+      now.getTime() + days * 24 * 60 * 60 * 1000
+    );
 
     const users = await User.find({
       status: true,
       isDraft: false,
-      expiry: { $gte: now, $lte: till },
+      isDeleted: { $ne: true },
+      expiry: {
+        $gte: now,
+        $lte: till,
+      },
     })
       .select("-__v")
       .populate("packages", "name forms price");
 
-    res.status(200).json(users);
+    return res.status(200).json(users);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err.message,
+    });
   }
 };
 exports.getTargetsAchievedUsers = async (req, res) => {
   try {
     const behindLimit = Number(req.query.behind || 200);
-    await syncMissingUserTotals({
+
+    const activeUserFilter = {
       status: true,
       isDraft: false,
-      packages: { $exists: true, $ne: null },
-    });
+      isDeleted: { $ne: true },
+      packages: {
+        $exists: true,
+        $ne: null,
+      },
+    };
+
+    await syncMissingUserTotals(activeUserFilter);
 
     const users = await User.aggregate([
       {
-        $match: {
-          status: true,
-          isDraft: false,
-          packages: { $exists: true, $ne: null },
-        },
+        $match: activeUserFilter,
       },
-
-      // ✅ package lookup (Packagee)
       {
         $lookup: {
           from: "packagees",
           localField: "packages",
           foreignField: "_id",
-          as: "pkg",
-        },
-      },
-      { $unwind: "$pkg" },
-
-      // ✅ count completed forms for each user from FormEntry
-      {
-        $lookup: {
-          from: "formentries",
-          let: { uid: "$_id" },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
-
-            // Option 1: count docs (most common)
-            { $count: "completed" },
-
-            // Option 2 (if duplicates possible): unique excelRowId
-            // { $group: { _id: "$excelRowId" } },
-            // { $count: "completed" },
-          ],
-          as: "progress",
-        },
-      },
-
-      // ✅ compute goal + done + remaining
-      {
-        $addFields: {
-          totalFormsDone: { $ifNull: ["$totalFormsDone", 0] },
-          goal: "$pkg.forms",
-        },
-      },
-      {
-        $addFields: {
-          remaining: { $subtract: ["$goal", "$totalFormsDone"] },
-        },
-      },
-
-      // ✅ include achieved + near achieved (remaining <= 200 includes remaining <= 0)
-      { $match: { remaining: { $lte: behindLimit } } },
-
-      // ✅ admin lookup (so UI can do admin?.name)
-      {
-        $lookup: {
-          from: "admins", // default mongoose collection for Admin
-          localField: "admin",
-          foreignField: "_id",
-          as: "adminDoc",
+          as: "packages",
         },
       },
       {
         $unwind: {
-          path: "$adminDoc",
+          path: "$packages",
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $lookup: {
+          from: "admins",
+          localField: "admin",
+          foreignField: "_id",
+          as: "admin",
+        },
+      },
+      {
+        $unwind: {
+          path: "$admin",
           preserveNullAndEmptyArrays: true,
         },
       },
-
-      // ✅ IMPORTANT: Use ONLY INCLUSION in $project (no password:0 etc)
       {
-        $project: {
-          _id: 1,
-          name: 1,
-          email: 1,
-          password: 1,
-          mobile: 1,
-          status: 1,
-          expiry: 1,
-          isDraft: 1,
-          reportDeclared: 1,
-          price: 1,
-          paymentoptions: 1,
-          lastLoginSession: 1,
-
-          // fields your UI uses
-          goal: 1,
-          totalFormsDone: 1,
-          remaining: 1,
-
-          // make packages become an object {name, forms, ...}
-          packages: {
-            _id: "$pkg._id",
-            name: "$pkg.name",
-            forms: "$pkg.forms",
-            price: "$pkg.price",
+        $addFields: {
+          goal: {
+            $ifNull: ["$packages.forms", 0],
           },
-
-          // make admin become an object {name}
-          admin: {
-            _id: "$adminDoc._id",
-            name: "$adminDoc.name",
+          completedForms: {
+            $ifNull: ["$totalFormsDone", 0],
           },
         },
       },
+      {
+        $addFields: {
+          totalFormsDone: "$completedForms",
+          totalCompleted: "$completedForms",
+          workCompleted: "$completedForms",
+          remaining: {
+            $subtract: ["$goal", "$completedForms"],
+          },
+          goalStatus: {
+            $concat: [
+              {
+                $toString: "$completedForms",
+              },
+              "/",
+              {
+                $toString: "$goal",
+              },
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          remaining: {
+            $lte: behindLimit,
+          },
+        },
+      },
+      {
+        $project: {
+          ...userListBaseProjection,
 
-      { $sort: { remaining: 1 } },
+          packages: {
+            _id: "$packages._id",
+            name: "$packages.name",
+            forms: "$packages.forms",
+            price: "$packages.price",
+          },
+
+          admin: {
+            _id: "$admin._id",
+            name: "$admin.name",
+          },
+
+          goal: 1,
+          completedForms: 1,
+          totalFormsDone: 1,
+          totalCompleted: 1,
+          workCompleted: 1,
+          remaining: 1,
+          goalStatus: 1,
+        },
+      },
+      {
+        $sort: {
+          remaining: 1,
+        },
+      },
     ]);
 
     return res.status(200).json(users);
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message:
+        err.message || "Failed to get target achieved users",
+    });
   }
 };
+
+
+
+
+
 
 
 exports.getdashStats = async (req, res) => {
@@ -911,46 +1123,75 @@ exports.getdashStats = async (req, res) => {
     await syncMissingUserTotals({
       status: true,
       isDraft: false,
-      packages: { $exists: true, $ne: null },
+      isDeleted: { $ne: true },
+      packages: {
+        $exists: true,
+        $ne: null,
+      },
     });
 
     const now = new Date();
     const dayMs = 24 * 60 * 60 * 1000;
 
     const expiringDays = 4;
-    const expiringTill = new Date(now.getTime() + expiringDays * dayMs);
+
+    const expiringTill = new Date(
+      now.getTime() + expiringDays * dayMs
+    );
 
     const behindLimit = 200;
 
-    // ✅ base stats + expiring soon
     const [
       totalAdmins,
       totalUsers,
       totalActiveUsers,
       totalInActiveUsers,
       totalExpiringSoon,
+      totalTrashUsers,
     ] = await Promise.all([
       Admin.countDocuments(),
-      User.countDocuments(),
-      User.countDocuments({ status: true }),
-      User.countDocuments({ status: false }),
+
+      User.countDocuments({
+        isDeleted: { $ne: true },
+      }),
+
+      User.countDocuments({
+        status: true,
+        isDeleted: { $ne: true },
+      }),
+
+      User.countDocuments({
+        status: false,
+        isDeleted: { $ne: true },
+      }),
+
       User.countDocuments({
         status: true,
         isDraft: false,
-        expiry: { $gte: now, $lte: expiringTill },
+        isDeleted: { $ne: true },
+        expiry: {
+          $gte: now,
+          $lte: expiringTill,
+        },
+      }),
+
+      User.countDocuments({
+        isDeleted: true,
       }),
     ]);
 
-    // ✅ targets achieved = remaining <= 200 (includes achieved: remaining <= 0)
     const targetsAgg = await User.aggregate([
       {
         $match: {
           status: true,
           isDraft: false,
-          packages: { $exists: true, $ne: null },
+          isDeleted: { $ne: true },
+          packages: {
+            $exists: true,
+            $ne: null,
+          },
         },
       },
-
       {
         $lookup: {
           from: "packagees",
@@ -959,36 +1200,59 @@ exports.getdashStats = async (req, res) => {
           as: "pkg",
         },
       },
-      { $unwind: "$pkg" },
-
+      {
+        $unwind: "$pkg",
+      },
       {
         $lookup: {
           from: "formentries",
-          let: { uid: "$_id" },
+          let: {
+            uid: "$_id",
+          },
           pipeline: [
-            { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
-
-            { $count: "completed" },
-
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$userId", "$$uid"],
+                },
+              },
+            },
+            {
+              $count: "completed",
+            },
           ],
           as: "progress",
         },
       },
-
       {
         $addFields: {
-          completed: { $ifNull: ["$totalFormsDone", 0] },
+          completed: {
+            $ifNull: ["$totalFormsDone", 0],
+          },
           target: "$pkg.forms",
         },
       },
-      { $addFields: { remaining: { $subtract: ["$target", "$completed"] } } },
-
-      { $match: { remaining: { $lte: behindLimit } } },
-
-      { $count: "totalTargetsAchieved" },
+      {
+        $addFields: {
+          remaining: {
+            $subtract: ["$target", "$completed"],
+          },
+        },
+      },
+      {
+        $match: {
+          remaining: {
+            $lte: behindLimit,
+          },
+        },
+      },
+      {
+        $count: "totalTargetsAchieved",
+      },
     ]);
 
-    const totalTargetsAchieved = targetsAgg?.[0]?.totalTargetsAchieved || 0;
+    const totalTargetsAchieved =
+      targetsAgg?.[0]?.totalTargetsAchieved || 0;
 
     return res.status(200).json({
       totalAdmins,
@@ -997,31 +1261,45 @@ exports.getdashStats = async (req, res) => {
       totalInActiveUsers,
       totalExpiringSoon,
       totalTargetsAchieved,
+      totalTrashUsers,
     });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err.message,
+    });
   }
 };
-
 
 exports.getReports = async (req, res) => {
   try {
     const { id } = req.params;
 
     const pagination = parsePagination(req.query);
-    const query = FormEntry.find({ userId: id })
-      .select("_id userId formNo excelRowId responses createdAt")
-      .sort({ createdAt: -1 })
+
+    const query = FormEntry.find({
+      userId: id,
+    })
+      .select(
+        "_id userId formNo excelRowId responses createdAt"
+      )
+      .sort({
+        createdAt: -1,
+      })
       .lean();
 
     if (pagination) {
-      query.skip(pagination.skip).limit(pagination.limit);
+      query
+        .skip(pagination.skip)
+        .limit(pagination.limit);
     }
 
     const entries = await query;
 
     if (pagination) {
-      const total = await FormEntry.countDocuments({ userId: id });
+      const total = await FormEntry.countDocuments({
+        userId: id,
+      });
+
       return res.status(200).json(
         buildPaginatedResponse({
           data: entries,
@@ -1035,10 +1313,12 @@ exports.getReports = async (req, res) => {
     return res.status(200).json(entries);
   } catch (err) {
     console.log("getReports ERROR:", err);
-    return res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      message: err.message,
+    });
   }
 };
-
 exports.updateFormEntryResponses = async (req, res) => {
   try {
     const { entryId } = req.params;
@@ -1550,10 +1830,35 @@ exports.addToDraft = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await User.findByIdAndUpdate(id, { isDraft: true });
-    res.json({ message: "User moved to drafts" });
+    const user = await User.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          isDraft: true,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found or user is in Trash",
+      });
+    }
+
+    return res.status(200).json({
+      message: "User added to drafts",
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error moving user to drafts" });
+    return res.status(500).json({
+      message:
+        err.message || "Error adding user to drafts",
+    });
   }
 };
 
@@ -1561,24 +1866,55 @@ exports.removeFromDraft = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await User.findByIdAndUpdate(id, { isDraft: false });
-    res.json({ message: "User removed from drafts" });
+    const user = await User.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          isDraft: false,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found or user is in Trash",
+      });
+    }
+
+    return res.json({
+      message: "User removed from drafts",
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error removing user from drafts" });
+    return res.status(500).json({
+      message: "Error removing user from drafts",
+    });
   }
 };
 
 exports.getDraftUsers = async (req, res) => {
   try {
-    await syncMissingUserTotals({ isDraft: true });
+    const draftFilter = {
+      isDraft: true,
+      isDeleted: { $ne: true },
+    };
+
+    await syncMissingUserTotals(draftFilter);
 
     const drafts = await User.aggregate(
-      buildUserListPipeline({ isDraft: true })
+      buildUserListPipeline(draftFilter)
     );
 
-    res.json(drafts);
+    return res.status(200).json(drafts);
   } catch (err) {
-    res.status(500).json({ message: "Error getting draft users" });
+    return res.status(500).json({
+      message: "Error getting draft users",
+    });
   }
 };
 

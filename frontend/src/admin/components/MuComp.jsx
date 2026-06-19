@@ -72,17 +72,33 @@ function MuComp() {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure to delete this user?")) return;
-    try {
-      await axios.delete(`https://api.freelancing-projects.com/api/admin/${id}/delete-user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      getUsers();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    }
-  };
+ const handleDeleteUser = async (id) => {
+  const confirmed = window.confirm(
+    "Move this user to Trash? You can restore the user later."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await axios.delete(
+      `https://api.freelancing-projects.com/api/admin/${id}/delete-user`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    alert(res.data?.message || "User moved to Trash");
+    await getUsers();
+  } catch (err) {
+    alert(
+      err.response?.data?.message ||
+      err.message ||
+      "Failed to move user to Trash"
+    );
+  }
+};
 
   const handleAddToDraft = async (id) => {
     try {
@@ -317,6 +333,12 @@ const sortedUsers = useMemo(() => {
             <button className="type" onClick={() => navigate("/admin/drafts")}>
               Drafts
             </button>
+            <button
+            className="type"
+            onClick={() => navigate("/admin/trash-users")}
+          >
+            Trash
+          </button>
           </div>
         </div>
 
