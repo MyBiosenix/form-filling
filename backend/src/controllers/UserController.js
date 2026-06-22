@@ -64,10 +64,9 @@ const buildUserResultPayload = async (userId) => {
     reports,
   };
 };
-
 exports.login = async (req, res) => {
   try {
-    const { email, password, forceLogin } = req.body;
+    const { email, password, forceLogin = false } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -75,8 +74,20 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Normalize and safely escape the email
+    const normalizedEmail = String(email).trim();
+
+    const escapedEmail = normalizedEmail.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    );
+
+    // Case-insensitive exact email search
     const user = await User.findOne({
-      email: email.trim().toLowerCase(),
+      email: {
+        $regex: `^${escapedEmail}$`,
+        $options: "i",
+      },
     })
       .populate("packages", "name")
       .populate("admin", "name");
@@ -87,7 +98,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check Trash status before checking account status
+    // Check Trash status before account status
     if (user.isDeleted === true) {
       return res.status(403).json({
         message:
@@ -145,6 +156,8 @@ exports.login = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("User login error:", err);
+
     return res.status(500).json({
       message: err.message || "Login failed",
     });

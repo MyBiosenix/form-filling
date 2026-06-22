@@ -41,66 +41,93 @@ function UserLogin() {
     checkAlreadyLoggedIn();
   }, [navigate]);
 
-  const handlelogin = async (forceLogin = false) => {
-    setEmailError("");
-    setPasswordError("");
+ const handlelogin = async (forceLogin = false) => {
+  setEmailError("");
+  setPasswordError("");
 
-    let valid = true;
+  const cleanEmail = email.trim();
+  const cleanPassword = password;
 
-    if (email === "" || password === "") {
-      alert("Please Fill both the fields");
-      valid = false;
-    }
+  let valid = true;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setEmailError("Invalid Email Format");
-      valid = false;
-    }
+  if (!cleanEmail || !cleanPassword) {
+    alert("Please fill both fields");
+    return;
+  }
 
-    if (password.length < 5) {
-      setPasswordError("Password length should atleast be of 5");
-      valid = false;
-    }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!valid) return;
+  if (!emailRegex.test(cleanEmail)) {
+    setEmailError("Invalid email format");
+    valid = false;
+  }
 
-    try {
-      const res = await axios.post("https://api.freelancing-projects.com/api/user/login", {
-        email,
-        password,
+  if (cleanPassword.length < 5) {
+    setPasswordError("Password must be at least 5 characters");
+    valid = false;
+  }
+
+  if (!valid) return;
+
+  try {
+    console.log("USER LOGIN REQUEST:", {
+      email: cleanEmail,
+      passwordLength: cleanPassword.length,
+      forceLogin,
+    });
+
+    const res = await axios.post(
+      "https://api.freelancing-projects.com/api/user/login",
+      {
+        email: cleanEmail,
+        password: cleanPassword,
         forceLogin,
-      });
-
-      alert("Login Successful");
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      localStorage.setItem("userId", res.data.user.id);
-
-      if (typeof res.data.user.status !== "undefined") {
-        localStorage.setItem("status", String(res.data.user.status));
       }
+    );
 
-      navigate("/home", { replace: true });
-    } catch (err) {
-      if (err.response?.status === 409 && err.response.data?.requiresForceLogin) {
-        const confirmForce = window.confirm(
-          err.response.data.message + "\n\nDo you want to continue?"
-        );
+    const userId = res.data.user?._id || res.data.user?.id;
 
-        if (confirmForce) {
-          return handlelogin(true);
-        }
-        return;
-      }
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+    localStorage.setItem("userId", userId);
 
-      if (err.response?.data?.message) {
-        alert(err.response.data.message);
-      } else {
-        alert("Login Failed");
-      }
+    if (typeof res.data.user?.status !== "undefined") {
+      localStorage.setItem(
+        "status",
+        String(res.data.user.status)
+      );
     }
-  };
+
+    alert("Login successful");
+    navigate("/home", { replace: true });
+  } catch (err) {
+    console.error(
+      "USER LOGIN ERROR:",
+      err.response?.status,
+      err.response?.data || err.message
+    );
+
+    if (
+      err.response?.status === 409 &&
+      err.response?.data?.requiresForceLogin
+    ) {
+      const confirmForce = window.confirm(
+        `${err.response.data.message}\n\nDo you want to continue?`
+      );
+
+      if (confirmForce) {
+        return handlelogin(true);
+      }
+
+      return;
+    }
+
+    alert(
+      err.response?.data?.message ||
+        "Login failed. Please try again."
+    );
+  }
+};
 
   if (checkingAuth) {
     return (
@@ -120,12 +147,13 @@ function UserLogin() {
         <div className="myinputs11">
           <div className="input11">
             <label>Email Id</label>
-            <input
-              type="text"
-              placeholder="Enter Email Id"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+          <input
+  type="email"
+  placeholder="Enter Email Id"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  autoComplete="email"
+/>
             {emailError && <p className="error">{emailError}</p>}
           </div>
 
