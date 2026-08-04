@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
     email:{
         type:String,
         required:true,
-        unique:true
+        
     },
     password:{
         type:String,
@@ -98,6 +98,16 @@ deletedBy: {
 },
 
 })
+
+userSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+    },
+  }
+);
 
 userSchema.index({ status: 1 });
 userSchema.index({ admin: 1, status: 1 });

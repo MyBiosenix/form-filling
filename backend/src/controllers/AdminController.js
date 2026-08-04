@@ -448,37 +448,99 @@ exports.deletePackage = async(req,res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, mobile, admin, packages, price, paymentoptions, expiry } = req.body;
+    const {
+      name,
+      email,
+      mobile,
+      admin,
+      packages,
+      price,
+      paymentoptions,
+      expiry,
+    } = req.body;
 
-    if (!expiry) return res.status(400).json({ message: "Expiry is required" });
+    if (!name || !email) {
+      return res.status(400).json({
+        message: "Name and email are required",
+      });
+    }
+
+    if (!expiry) {
+      return res.status(400).json({
+        message: "Expiry is required",
+      });
+    }
 
     const expiryDate = new Date(expiry);
-    if (isNaN(expiryDate.getTime())) {
-      return res.status(400).json({ message: "Invalid expiry date/time" });
+
+    if (Number.isNaN(expiryDate.getTime())) {
+      return res.status(400).json({
+        message: "Invalid expiry date/time",
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    /*
+     * Only an active user blocks account creation.
+     * A user inside Trash can have the same email.
+     */
+    const existingActiveUser = await User.findOne({
+      email: normalizedEmail,
+      isDeleted: { $ne: true },
+    })
+      .select("_id")
+      .lean();
+
+    if (existingActiveUser) {
+      return res.status(409).json({
+        message: "An active user already exists with this email",
+      });
     }
 
     const password = getRandomPassword();
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User Already Exists" });
-    }
-
-    await User.create({
-      name,
-      email,
+    const user = await User.create({
+      name: String(name).trim(),
+      email: normalizedEmail,
       password,
       mobile,
       admin,
       packages,
       price,
       paymentoptions,
-      expiry: expiryDate, // ✅ stores date+time
+      expiry: expiryDate,
+      status: true,
+      isDeleted: false,
+      deletedAt: null,
+      scheduledPermanentDeleteAt: null,
+      deletedBy: null,
+      lastLoginSession: null,
     });
 
-    res.status(200).json({ message: "User Created Successfully" });
+    return res.status(201).json({
+      message: "User Created Successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        mobile: user.mobile,
+        expiry: user.expiry,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Create user error:", err);
+
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        message: "An active user already exists with this email",
+      });
+    }
+
+    return res.status(500).json({
+      message: err.message || "Failed to create user",
+    });
   }
 };
 

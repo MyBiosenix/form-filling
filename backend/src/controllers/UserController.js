@@ -92,6 +92,7 @@ exports.login = async (req, res) => {
       .populate("packages", "name")
       .populate("admin", "name");
 
+    // No active account found
     if (!user) {
       return res.status(404).json({
         message: "User does not exist",
