@@ -74,20 +74,33 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Normalize and safely escape the email
+    // Normalize email
     const normalizedEmail = String(email).trim();
 
+    // Safely escape regex characters
     const escapedEmail = normalizedEmail.replace(
       /[.*+?^${}()|[\]\\]/g,
       "\\$&"
     );
 
-    // Case-insensitive exact email search
+    /*
+     * IMPORTANT:
+     * Search ONLY active/non-deleted users.
+     *
+     * This means if:
+     * Old account -> isDeleted: true
+     * New recreated account -> isDeleted: false
+     *
+     * Login will always use the recreated account.
+     */
     const user = await User.findOne({
       email: {
         $regex: `^${escapedEmail}$`,
         $options: "i",
       },
+
+      // Completely ignore Trash users
+      isDeleted: { $ne: true },
     })
       .populate("packages", "name")
       .populate("admin", "name");
@@ -99,20 +112,14 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check Trash status before account status
-    if (user.isDeleted === true) {
-      return res.status(403).json({
-        message:
-          "Your account has been moved to Trash. Please contact the admin.",
-      });
-    }
-
+    // Password check
     if (password !== user.password) {
       return res.status(400).json({
         message: "Incorrect password",
       });
     }
 
+    // Account status check
     if (user.status === false) {
       return res.status(403).json({
         message:
@@ -120,6 +127,7 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Check existing login session
     if (user.lastLoginSession && !forceLogin) {
       return res.status(409).json({
         message:
@@ -128,6 +136,7 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Generate JWT
     const token = jwt.sign(
       {
         id: user._id,
@@ -138,19 +147,21 @@ exports.login = async (req, res) => {
       }
     );
 
+    // Save current login session
     user.lastLoginSession = token;
     await user.save();
 
     return res.status(200).json({
       message: "Login successful",
       token,
+
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
         admin: user.admin?.name || null,
-        packages: user.packages?.name || null,
+        packages: user.packages || [],
         price: user.price,
         expiry: user.expiry,
         status: user.status,
